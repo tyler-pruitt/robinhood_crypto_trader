@@ -13,6 +13,9 @@ import sys
 # Make sure to take advantage of robin_stocks.robinhood documentation: https://robin-stocks.readthedocs.io/en/latest/robinhood.html
 
 def login():
+    """
+    Already in Trader class
+    """
     time_logged_in = 60 * 60 * 24 * config.TIMEINDAYS
     
     rh.authentication.login(username=config.USERNAME,
@@ -25,18 +28,24 @@ def login():
     print("login successful")
 
 def logout():
+    """
+    Already in Trader class
+    """
     rh.authentication.logout()
     
     print("logout successful")
 
 def get_cash():
+    """
+    Already in Trader class
+    """
     rh_cash = rh.account.build_user_profile()
 
     cash = float(rh_cash['cash'])
     equity = float(rh_cash['equity'])
     
     
-    return(cash, equity)
+    return cash, equity
 
 def plot_portfolio(time, portfolio):
     plt.plot(time, portfolio, 'g-')
@@ -55,6 +64,9 @@ def build_dataframes(df_trades, trade_dict, df_prices, price_dict):
     return(df_trades, df_prices)
 
 def get_crypto_holdings_capital(holdings):
+    """
+    Already in Trader class
+    """
     capital = 0
         
     for crypto_name, crypto_amount in holdings.items():
@@ -64,6 +76,8 @@ def get_crypto_holdings_capital(holdings):
 
 def get_latest_price(stocks):
     """
+    Already in Trader class
+
     Returns: list of prices
     """
     
@@ -76,6 +90,8 @@ def get_latest_price(stocks):
 
 def build_holdings():
     """
+    Already in Trader class
+    
     Returns {
         'crypto1': {
             'price': '76.24',
@@ -109,6 +125,9 @@ def build_holdings():
     return build_holdings_data
 
 def get_holdings_and_bought_price(stocks):
+    """
+    Already in Trader class
+    """
     holdings = {stocks[i]: 0 for i in range(0, len(stocks))}
     bought_price = {stocks[i]: 0 for i in range(0, len(stocks))}
     
@@ -159,6 +178,9 @@ def convert_time_to_sec(time):
     return sec
 
 def display_holdings(holdings):
+    """
+    Already in Trader class
+    """
     for crypto, amount in holdings.items():
         
         print('\t' + str(amount) + ' ' + crypto + " at $" + str(rh.get_crypto_quote(crypto)['mark_price']))
@@ -188,7 +210,9 @@ def update_output(iteration_num, tr, equity, holdings, cash, total_iteration_num
     print("profit: " + tr.display_profit() + " (" + tr.display_percent_change() + ")")
 
 def download_backtest_data(stocks):
-    
+    """
+    Already in Trader class
+    """
     crypto_historical_data = []
     
     for i in range(len(stocks)):
@@ -200,6 +224,9 @@ def download_backtest_data(stocks):
     return crypto_historical_data
 
 def check_config():
+    """
+    Already in Trader class
+    """
     assert type(config.TIMEINDAYS) == int and config.TIMEINDAYS >= 1
 
     assert type(config.USERNAME) == str and type(config.PASSWORD) == str

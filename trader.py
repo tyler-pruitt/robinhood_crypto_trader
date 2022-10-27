@@ -5,29 +5,84 @@ import time as t
 import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 import pandas_ta as ta
+import random as r
 
-import config
 from indicators import MA, EMA, RSI, MACD, BOLL
+import order
 
 import robin_stocks.robinhood as rh
 
 class Trader():
-    def __init__(self, stocks, initial_capital):
-        self.stocks = stocks
+    def __init__(self, config):
+        """
+        config = {
+            crypto: [],
+            username: '',
+            password: '',
+            days_to_run: 1,
+            export_csv: False,
+            plot_analytics: False,
+            plot_crypto: False,
+            mode: '',
+            backtest: {
+                interval: '',
+                span: '',
+                bounds: ''
+            },
+            trader: {
+                interval: '',
+                span: '',
+                bounds: ''
+            },
+            determine_trade_function: 'function_name',
+            cash: 2000,
+            use_cash: False,
+            loss_threshold: 50.00
+        }
+        """
+        self.check_config(config)
+
+        self.id = self.generate_id()
+        self.crypto = config['crypto']
+        self.username = config['username']
+        self.password = config['password']
+        self.days_to_run = config['days_to_run']
+        self.export_csv = config['export_csv']
+        self.plot_analytics_config = config['plot_analytics']
+        self.plot_crypto_config = config['plot_crypto']
+        self.mode = config['mode']
+
+        if self.mode == 'backtest':
+            self.backtest_interval = config['backtest']['interval']
+            self.backtest_span = config['backtest']['span']
+            self.backtest_bounds = config['backtest']['bounds']
+
+            self.is_live = False
+        else:
+            self.interval = config['trader']['interval']
+            self.span = config['trader']['span']
+            self.bounds = config['trader']['bounds']
+
+            if self.mode == 'live':
+                self.is_live = True
+            else:
+                self.is_live = False
         
-        self.initial_capital = initial_capital
+        if self.is_live:
+            self.orders = []
         
-        self.start_time = t.time()
+        self.cash = config['cash']
+        self.use_cash = config['use_cash']
+
+        self.holdings, self.bought_price = self.get_holdings_and_bought_price()
 
         # Loss threshold (in dollars) taken to be a positive value
-        self.loss_threshold = 50.00
+        self.loss_threshold = config['loss_threshold']
         
-        # RSI overbought and oversold thresholds
-        self.oversold = 30
-        self.overbought = 70
+        # Need to set initial capital
+        self.initial_capital = 5
         
-        self.interval = "15second"
-        self.span = "hour"
+        self.start_time = t.time()
         
         self.profit = 0.0
         self.percent_change = 0.0
@@ -35,20 +90,218 @@ class Trader():
         self.trade = ''
         
         # self.buy_times = [{datetime: 'status'}]
-        # status possibilities arew ['live_buy', 'simulated_buy', 'unable_to_buy', 'live_sell', 'simulated_sell', unable_to_sell']
-        self.buy_times = [dict()] * len(stocks)
-        self.sell_times = [dict()] * len(stocks)
+        # status possibilities are ['live_buy', 'simulated_buy', 'unable_to_buy', 'live_sell', 'simulated_sell', unable_to_sell']
+        self.buy_times = [dict()] * len(self.crypto)
+        self.sell_times = [dict()] * len(self.crypto)
         
-        assert self.loss_threshold >= 0
-        
-        assert self.oversold >= 0 and self.oversold <= 100
-        
-        assert self.overbought >= 0 and self.overbought <= 100
-        
-        assert self.profit == 0.0 and self.percent_change == 0.0
+        self.login()
     
     def __repr__(self):
         return "Trader(profit: " + self.display_profit() + " (" + self.display_percent_change() + "), runtime: " + self.display_time(self.get_runtime()) + ")"
+    
+    def generate_id(self):
+        letters_and_numbers = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        id = ''
+        
+        # id = '####-####-####'
+        for i in range(3):
+            for j in range(4):
+                id += letters_and_numbers[r.randint(0, len(letters_and_numbers)-1)]
+            
+            if i != 2:
+                id += '-'
+        
+        return id
+    
+    def login(self):
+        time_logged_in = 60 * 60 * 24 * self.days_to_run
+        
+        rh.authentication.login(username=self.username,
+                                password=self.password,
+                                expiresIn=time_logged_in,
+                                scope='internal',
+                                by_sms=True,
+                                store_session=False)
+        
+        print("login successful")
+    
+    def logout(self):
+        rh.authentication.logout()
+        
+        print("logout successful")
+    
+    def get_cash(self):
+        rh_cash = rh.account.build_user_profile()
+
+        cash = float(rh_cash['cash'])
+        equity = float(rh_cash['equity'])
+        
+        
+        return cash, equity
+    
+    def get_latest_price(self, crypto_symbol):
+        
+        return rh.crypto.get_crypto_quote(crypto_symbol)['mark_price']
+    
+    def get_crypto_holdings_capital(self):
+        capital = 0
+            
+        for crypto_name, crypto_amount in self.holdings.items():
+            capital += crypto_amount * float(get_latest_price(crypto_name))
+            
+        return capital
+    
+    def build_holdings(self):
+        """
+        Returns {
+            'crypto1': {
+                'price': '76.24',
+                'quantity': '2.00',
+                'average_buy_price': '79.26',
+                },
+            'crypto2': {
+                'price': '76.24',
+                'quantity': '2.00',
+                'average_buy_price': '79.26',
+                }}
+        """
+        
+        holdings_data = rh.crypto.get_crypto_positions()
+        
+        build_holdings_data = dict()
+        
+        for i in range(len(holdings_data)):
+            nested_data = dict()
+            
+            nested_data['price'] = self.get_latest_price(holdings_data[i]["currency"]["code"])
+            nested_data['quantity'] = holdings_data[i]["quantity"]
+            
+            try:
+                nested_data['average_buy_price'] = str(float(holdings_data[i]["cost_bases"][0]["direct_cost_basis"]) / float(nested_data["quantity"]))
+            except ZeroDivisionError:
+                nested_data['average_buy_price'] = '-'
+            
+            build_holdings_data[holdings_data[i]["currency"]["code"]] = nested_data
+        
+        return build_holdings_data
+    
+    def get_holdings_and_bought_price(self):
+        holdings = {self.crypto[i]: 0 for i in range(0, len(self.crypto))}
+        bought_price = {self.crypto[i]: 0 for i in range(0, len(self.crypto))}
+        
+        rh_holdings = self.build_holdings()
+
+        for crypto_symbol in self.crypto:
+            try:
+                holdings[crypto_symbol] = float(rh_holdings[crypto_symbol]['quantity'])
+                bought_price[crypto_symbol] = float(rh_holdings[crypto_symbol]['average_buy_price'])
+            except:
+                holdings[crypto_symbol] = 0
+                bought_price[crypto_symbol] = 0
+
+        return holdings, bought_price
+    
+    def display_holdings(self):
+        for crypto, amount in self.holdings.items():
+            
+            print('\t' + str(amount) + ' ' + crypto + " at $" + str(self.get_latest_price(crypto)))
+    
+    def download_backtest_data(self):
+        """
+        Assumes that self.mode is 'backtest'
+        """
+        crypto_historical_data = []
+        
+        for i in range(len(self.crypto)):
+            
+            crypto_historical_data += [rh.crypto.get_crypto_historicals(symbol=self.crypto[i], interval=self.backtest_interval, span=self.backtest_span, bounds=self.backtest_bounds)]
+        
+        print("downloading backtesting data finished")
+        
+        return crypto_historical_data
+    
+    def check_config(self, config):
+        assert type(config['days_to_run']) == int and config['days_to_run'] >= 1
+
+        assert type(config['username']) == str and type(config['password']) == str
+        
+        assert len(config['username']) > 0 and len(config['password']) > 0
+        
+        assert config['mode'] in ['live', 'backtest', 'safelive']
+        
+        assert type(config['export_csv']) == bool
+
+        assert type(config['plot_analytics']) == bool
+        
+        assert type(config['plot_crypto']) == bool
+        
+        assert type(config['plot_portfolio']) == bool
+
+        assert type(config['crypto']) == list and len(config['crypto']) > 0
+
+        assert type(config['loss_threshold']) == float or type(config['loss_threshold']) == int
+        
+        assert config['loss_threshold'] >= 0
+
+        assert type(config['determine_trade_function']) == str
+        
+        # Use rh.crypto.get_crypto_currency_pairs() for 'pairs' so that it is up-to-date
+        
+        crypto_pair_data = rh.crypto.get_crypto_currency_pairs()
+        
+        pairs = []
+        
+        for i in range(len(crypto_pair_data)):
+            if crypto_pair_data[i]['tradability'] == 'tradable':
+                pairs += [crypto_pair_data[i]['asset_currency']['code']]
+                pairs += [crypto_pair_data[i]['symbol']]
+        
+        for i in range(len(config['crypto'])):
+            assert config['crypto'][i] in pairs
+        
+        assert type(config['use_cash']) == bool
+        
+        if config['use_cash']:
+            assert type(config['cash']) == float or type(config['cash']) == int
+            
+            assert config['cash'] > 0
+        
+        intervals = ['15second', '5minute', '10minute', 'hour', 'day', 'week']
+        spans = ['hour', 'day', 'week', 'month', '3month', 'year', '5year']
+        bounds = ['Regular', 'trading', 'extended', '24_7']
+        
+        if config['mode'] == 'backtest':
+            assert type(config['backtest']['interval']) == str
+            
+            assert config['backtest']['interval'] in intervals
+            
+            assert type(config['backtest']['span']) == str
+            
+            assert config['backtest']['span'] in spans
+            
+            assert type(config['backtest']['bounds']) == str
+            
+            assert config['backtest']['bounds'] in bounds
+            
+            assert config['use_cash'] == True
+        elif config['mode'] == 'live':
+            
+            assert config['use_cash'] == False
+        
+        if config['mode'] == 'live' or config['mode'] == 'safelive':
+            assert type(config['trader']['interval']) == str
+
+            assert config['trader']['interval'] in intervals
+
+            assert type(config['trader']['span']) == str
+
+            assert config['trader']['span'] in spans
+
+            assert type(config['trader']['bounds']) == str
+
+            assert config['trader']['bounds'] in bounds
+        
+        print("configuration test: PASSED")
     
     def get_percent_change(self):
         return self.percent_change
@@ -164,11 +417,11 @@ class Trader():
     def get_span(self):
         return self.span
     
-    def get_stocks(self):
-        return self.stocks
+    def get_crypto(self):
+        return self.crypto
     
-    def set_stocks(self, stocks):
-        self.stocks = stocks
+    def set_crypto(self, crypto):
+        self.stocks = crypto
     
     def get_start_time(self):
         return self.start_time
@@ -176,25 +429,25 @@ class Trader():
     def set_start_time(self, time):
         self.start_time = time
     
-    def get_historical_data(self, stock, interval, span):
-        historical_data = rh.crypto.get_crypto_historicals(stock, interval=interval, span=span, bounds='24_7')
+    def get_historical_data(self, crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds):
+        historical_data = rh.crypto.get_crypto_historicals(crypto_symbol, interval=interval, span=span, bounds=bounds)
         
         # df contains all the data (eg. time, open, close, high, low, volume, session, interpolated, symbol)
         df = pd.DataFrame(historical_data)
         
         return df
     
-    def get_historical_times(self, stock, interval, span):
+    def get_historical_times(self, crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds):
         # df contains all the data (eg. time, open, close, high, low)
-        df = self.get_historical_data(stock, interval, span)
+        df = self.get_historical_data(crypto_symbol, interval, span, bounds)
         
         dates_times = pd.to_datetime(df.loc[:, 'begins_at'])
         
         return dates_times
 
-    def get_historical_prices(self, stock, interval, span):
+    def get_historical_prices(self, crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds):
         # df contains all the data (eg. time, open, close, high, low)
-        df = self.get_historical_data(stock, interval, span)
+        df = self.get_historical_data(crypto_symbol, interval, span, bounds)
 
         dates_times = pd.to_datetime(df.loc[:, 'begins_at'])
         close_prices = df.loc[:, 'close_price'].astype('float')
@@ -228,7 +481,7 @@ class Trader():
         Runtime is much faster when config.PLOTANALYTICS = False
         """
         
-        if config.MODE == 'BACKTEST':
+        if self.mode == 'backtest':
             assert stock_historicals != None
             
             # Set times and prices given stock_historicals
@@ -240,29 +493,29 @@ class Trader():
                 
                 prices += [float(stock_historicals[k]['close_price'])]
         else:
-            df_historical_prices = self.get_historical_prices(stock, interval=self.interval, span=self.span)
+            df_historical_prices = self.get_historical_prices(stock)
             
             # For this algorithm, need times and prices to be of length >= (macd_slow_period + macd_signal_period - 1) = 34
             
             # https://pandas.pydata.org/docs/reference/api/pandas.Timestamp.html#pandas.Timestamp
-            times = self.convert_dataframe_to_list(self.get_historical_times(stock, self.interval, self.span))
+            times = self.convert_dataframe_to_list(self.get_historical_times(stock))
             prices = self.convert_dataframe_to_list(df_historical_prices, True)
         
-        if config.PLOTANALYTICS:
+        if self.plot_analytics_config:
             rsi_data = RSI(times, prices, 14)
         else:
             rsi_data = RSI(times[-16:], prices[-16:], 14)
             
             assert len(rsi_data) == 1
         
-        if rsi_data[-1][1] > self.get_overbought_threshold():
+        if rsi_data[-1][1] > 70:
             rsi_indicator = "SELL"
-        elif rsi_data[-1][1] < self.get_oversold_threshold():
+        elif rsi_data[-1][1] < 30:
             rsi_indicator = "BUY"
         else:
             rsi_indicator = "HOLD"
         
-        if config.PLOTANALYTICS:
+        if self.plot_analytics_config:
             macd, signal = MACD(times, prices, 12, 26, 9)
             macd_signal_difference = []
         else:
@@ -283,10 +536,10 @@ class Trader():
         else:
             macd_signal_indicator = "HOLD"
         
-        if config.PLOTANALYTICS:
+        if self.plot_analytics_config:
             self.plot_macd_rsi_analytics(stock, macd, signal, macd_signal_difference, rsi_data)
         
-        if config.PLOTCRYPTO:
+        if self.plot_crypto_config:
             self.plot_crypto(stock, prices, times)
         
         if rsi_indicator == "BUY" and macd_signal_indicator == "BUY":
@@ -310,7 +563,7 @@ class Trader():
         Runtime is much faster when config.PLOTANALYTICS = False
         """
         
-        if config.MODE == 'BACKTEST':
+        if self.mode == 'backtest':
             assert stock_historicals != None
             
             # Set times and prices given stock_historicals
@@ -322,15 +575,15 @@ class Trader():
                 
                 prices += [float(stock_historicals[k]['close_price'])]
         else:
-            df_historical_prices = self.get_historical_prices(stock, interval=self.interval, span=self.span)
+            df_historical_prices = self.get_historical_prices(stock)
             
             # For this algorithm, need times and prices to be of length >= period = 20
             
             # https://pandas.pydata.org/docs/reference/api/pandas.Timestamp.html#pandas.Timestamp
-            times = self.convert_dataframe_to_list(self.get_historical_times(stock, self.interval, self.span))
+            times = self.convert_dataframe_to_list(self.get_historical_times(stock))
             prices = self.convert_dataframe_to_list(df_historical_prices, True)
         
-        if config.PLOTANALYTICS:
+        if self.plot_analytics_config:
             boll_data = BOLL(times, prices)
         else:
             boll_data = BOLL(times[-20:], prices[-20:])
@@ -347,10 +600,10 @@ class Trader():
             
             self.set_trade("HOLD")
         
-        if config.PLOTANALYTICS:
+        if self.plot_analytics_config:
             self.plot_boll_analytics(stock, prices, times, boll_data)
         
-        if config.PLOTCRYPTO:
+        if self.plot_crypto_config:
             self.plot_crypto(stock, prices, times)
 
         return self.get_trade()
@@ -375,7 +628,7 @@ class Trader():
         for i in range(len(price_times)):
             price_times[i] = self.convert_timestamp_to_datetime(price_times[i])
         
-        for time, status in self.buy_times[self.stocks.index(stock)].items():
+        for time, status in self.buy_times[self.crypto.index(stock)].items():
             
             min_abs_distance, min_index = dt.timedelta(days=9999), 0
             
@@ -388,7 +641,7 @@ class Trader():
             buy_y += [prices[min_index]]
             buy_color += [status_to_color[status]]
         
-        for time, status in self.sell_times[self.stocks.index(stock)].items():
+        for time, status in self.sell_times[self.crypto.index(stock)].items():
             min_abs_distance, min_index = dt.timedelta(days=9999), 0
             
             for i in range(len(price_times)):
