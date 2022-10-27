@@ -1,4 +1,4 @@
-# Robinhood-Crypto-Autotrader
+# robinhood-crypto-trader
 An automated trader for crypto on Robinhood
 
 ## Donate to this project and help support open-sourced financial software (anything helps!)
