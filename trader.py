@@ -37,7 +37,7 @@ class Trader():
                 'span': '',
                 'bounds': ''
             },
-            'determine_trade_function': function_name,
+            'determine_trade_function': 'function_name',
             'cash': 2000,
             'use_cash': False,
             'loss_threshold': 50.00,
@@ -144,9 +144,6 @@ class Trader():
         return "Trader(id: " + self.id + ", profit: " + self.display_profit() + " (" + self.display_percent_change() + "), runtime: " + self.display_time(self.get_runtime()) + ")"
     
     def run(self):
-        """
-        Need to finish implementation
-        """
         try:
             print("cryptos: ", self.crypto)
 
@@ -235,7 +232,7 @@ class Trader():
                                     #order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=stock, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
 
                                     # Market order
-                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=stock, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
+                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
 
                                     self.orders += [order.Order(order_info)]
 
@@ -287,6 +284,96 @@ class Trader():
                             holdings_to_sell = self.holdings[crypto_name] / self.holdings_divisor
 
                             print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
+
+                            if self.is_live:
+                                print("LIVE: Sell order is going through")
+
+                                if len(order.get_all_open_orders()) == 0:
+                                    print("No orders still in queue: new order will execute")
+
+                                    # Limit order by price for a set quantity
+                                    #order_info = rh.orders.order_sell_crypto_limit(symbol=stock, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
+
+                                    # Market order
+                                    order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
+
+                                    self.orders += [order.Order(order_info)]
+
+                                    print("Order info:", order_info)
+
+                                    self.sell_times[i][dt.datetime.now()] = 'live_sell'
+                                else:
+                                    print("Orders are still in queue: order is canceled")
+
+                                    trade = 'UNABLE TO SELL (ORDERS STILL IN QUEUE)'
+
+                                    if self.mode == 'safelive':
+                                        self.sell_times[i][dt.datetime.now()] = 'unable_to_sell'
+                                    else:
+                                        self.sell_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
+                            else:
+                                print(self.mode + ': live sell order is not going through')
+
+                                # Simulate selling the crypto by adding to cash and substracting from holdings
+                                self.cash += holdings_to_sell * price
+
+                                self.holdings[crypto_name] -= holdings_to_sell
+
+                                # Average bought price is unaffected when selling
+                                if self.holdings[crypto_name] == 0:
+                                    self.bought_price[crypto_name] = 0
+                                
+                                trade = 'SIMULATION SELL'
+
+                                if self.mode == 'safelive':
+                                    self.sell_times[i][dt.datetime.now()] = 'simulated_sell'
+                                else:
+                                    self.sell_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
+                        else:
+                            print("Not enough holdings")
+
+                            trade = 'UNABLE TO SELL (NOT ENOUGH HOLDINGS)'
+
+                            if self.mode != 'backtest':
+                                self.sell_times[i][dt.datetime.now()] = 'unable_to_sell'
+                            else:
+                                self.sell_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
+                    
+                    self.price_dict[crypto_name] = price
+                    
+                    self.trade_dict[crypto_name] = trade
+                
+                self.df_trades, self.df_prices = self.build_dataframes(self.df_trades, self.trade_dict, self.df_prices, self.price_dict)
+
+                print('\ndf_prices \n', self.df_prices, end='\n\n')
+                print('df_trades \n', self.df_trades, end='\n\n')
+
+                if self.mode != 'backtest':
+                    self.iteration_runtime_end = t.time()
+
+                    if self.average_iteration_runtime == 0:
+
+                        self.average_iteration_runtime = self.iteration_runtime_end - self.iteration_runtime_start
+                    else:
+                        # Update average iteration runtime
+                        self.average_iteration_runtime *= self.iteration_number
+
+                        self.average_iteration_runtime += (self.iteration_runtime_end - self.iteration_runtime_start)
+
+                        self.average_iteration_runtime /= (self.iteration_number + 1)
+                    
+                    wait_time = self.convert_time_to_sec(self.get_interval()) - self.average_iteration_runtime
+
+                    if wait_time < 0:
+                        wait_time = 0
+                    
+                    print('Waiting ' + str(round(wait_time, 2)) + ' seconds...')
+
+                    t.sleep(wait_time)
+                else:
+                    self.backtest_index += 1
+                
+                self.iteration_number += 1
         
         except KeyboardInterrupt:
             print("User ended execution of program.")
@@ -350,41 +437,41 @@ class Trader():
         return rh.crypto.get_crypto_quote(crypto_symbol)['mark_price']
     
     def get_crypto_holdings_capital(self):
-        capital = 0
+        capital = 0.0
             
         for crypto_name, crypto_amount in self.holdings.items():
             capital += crypto_amount * float(self.get_latest_price(crypto_name))
         
         return capital
     
-    def convert_time_to_sec(self, time):
+    def convert_time_to_sec(self, time_str):
         """
         Input:
             time (str)
         Output:
             sec (int): time in seconds
         """
-        assert type(time) == str
+        assert type(time_str) == str
         
         digit = 1
         
-        for i in range(1, len(time)):
+        for i in range(1, len(time_str)):
             try:
-                digit = int(time[:i])
+                digit = int(time_str[:i])
             except ValueError:
                 break
         
-        time = time[i-1:]
+        time_str = time_str[i-1:]
         
-        if time == 'second':
+        if time_str == 'second':
             sec = digit
-        elif time == 'minute':
+        elif time_str == 'minute':
             sec = 60 * digit
-        elif time == 'hour':
+        elif time_str == 'hour':
             sec = 3600 * digit
-        elif time == 'day':
+        elif time_str == 'day':
             sec = 86400 * digit
-        elif time == 'week':
+        elif time_str == 'week':
             sec = 604800 * digit
         else:
             raise ValueError
@@ -702,7 +789,7 @@ class Trader():
         return self.crypto
     
     def set_crypto(self, crypto):
-        self.stocks = crypto
+        self.crypto = crypto
     
     def get_start_time(self):
         return self.start_time
@@ -710,31 +797,34 @@ class Trader():
     def set_start_time(self, time):
         self.start_time = time
     
-    def get_historical_data(self, crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds):
-        historical_data = rh.crypto.get_crypto_historicals(crypto_symbol, interval=interval, span=span, bounds=bounds)
+    def get_historical_data(self, crypto_symbol):
+        """
+        Assumes self.mode is either 'live' or 'safelive'
+        """
+        historical_data = rh.crypto.get_crypto_historicals(crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds)
         
         # df contains all the data (eg. time, open, close, high, low, volume, session, interpolated, symbol)
         df = pd.DataFrame(historical_data)
         
         return df
     
-    def get_historical_times(self, crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds):
+    def get_historical_times(self, crypto_symbol):
         # df contains all the data (eg. time, open, close, high, low)
-        df = self.get_historical_data(crypto_symbol, interval, span, bounds)
+        df = self.get_historical_data(crypto_symbol)
         
         dates_times = pd.to_datetime(df.loc[:, 'begins_at'])
         
         return dates_times
 
-    def get_historical_prices(self, crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds):
+    def get_historical_prices(self, crypto_symbol):
         # df contains all the data (eg. time, open, close, high, low)
-        df = self.get_historical_data(crypto_symbol, interval, span, bounds)
+        df = self.get_historical_data(crypto_symbol)
 
         dates_times = pd.to_datetime(df.loc[:, 'begins_at'])
         close_prices = df.loc[:, 'close_price'].astype('float')
 
         df_price = pd.concat([close_prices, dates_times], axis=1)
-        df_price = df_price.rename(columns={'close_price': stock})
+        df_price = df_price.rename(columns={'close_price': crypto_symbol})
         df_price = df_price.set_index('begins_at')
 
         return df_price
@@ -757,7 +847,6 @@ class Trader():
             assert crypto_historicals != None
             
             # Set times and prices given stock_historicals
-            # For this algorithm, need times and prices to be of length >= period = 20
             times, prices = [], []
             
             for k in range(len(crypto_historicals)):
@@ -767,16 +856,14 @@ class Trader():
         else:
             df_historical_prices = self.get_historical_prices(crypto_symbol)
             
-            # For this algorithm, need times and prices to be of length >= period = 20
-            
             # https://pandas.pydata.org/docs/reference/api/pandas.Timestamp.html#pandas.Timestamp
             times = self.convert_dataframe_to_list(self.get_historical_times(crypto_symbol))
             prices = self.convert_dataframe_to_list(df_historical_prices, True)
         
         if self.determine_trade_func in ['boll', 'macd_rsi']:
-            trade = eval('self.' + self.determine_trade_func + '(times, prices)')
+            trade = eval('self.' + self.determine_trade_func + '(crypto_symbol, times, prices)')
         else:
-            trade = eval(self.determine_trade_func + '(times, prices')
+            trade = eval(self.determine_trade_func + '(crypto_symbol, times, prices')
             
             assert trade in ['BUY', 'SELL', 'HOLD']
 
@@ -787,14 +874,14 @@ class Trader():
         
         return trade
 
-    def macd_rsi(self, times, prices):
+    def macd_rsi(self, crypto_name, times, prices):
         """
         Determines whether the trade is a 'BUY', 'SELL', or 'HOLD'
         
         If both RSI and MACD are cross their respective thresholds, then either buy or sell
         Else hold
         
-        Runtime is much faster when config.PLOTANALYTICS = False
+        Runtime is much faster when config['plot_analytics'] = False
         """
         
         if self.plot_analytics_config:
@@ -833,7 +920,7 @@ class Trader():
             macd_signal_indicator = "HOLD"
         
         if self.plot_analytics_config:
-            self.plot_macd_rsi_analytics(stock, macd, signal, macd_signal_difference, rsi_data)
+            self.plot_macd_rsi_analytics(crypto_name, macd, signal, macd_signal_difference, rsi_data)
         
         if rsi_indicator == "BUY" and macd_signal_indicator == "BUY":
             
@@ -847,13 +934,13 @@ class Trader():
 
         return self.get_trade()
     
-    def boll(self, times, prices):
+    def boll(self, crypto_name, times, prices):
         """
         Determines whether the trade is a 'BUY', 'SELL', or 'HOLD'
         
         Algorithm uses bollinger bands
         
-        Runtime is much faster when config.PLOTANALYTICS = False
+        Runtime is much faster when config['plot_analytics'] = False
         """
         
         if self.plot_analytics_config:
@@ -874,7 +961,7 @@ class Trader():
             self.set_trade("HOLD")
         
         if self.plot_analytics_config:
-            self.plot_boll_analytics(stock, prices, times, boll_data)
+            self.plot_boll_analytics(crypto_name, prices, times, boll_data)
 
         return self.get_trade()
     
