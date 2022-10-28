@@ -1,4 +1,3 @@
-import config
 import trader
 import order
 
@@ -48,6 +47,9 @@ def get_cash():
     return cash, equity
 
 def plot_portfolio(time, portfolio):
+    """
+    Already in Trader class
+    """
     plt.plot(time, portfolio, 'g-')
     plt.title("Portfolio (cash + crypto equity)")
     plt.xlabel("Runtime (in seconds)")
@@ -55,6 +57,9 @@ def plot_portfolio(time, portfolio):
     plt.show()
 
 def build_dataframes(df_trades, trade_dict, df_prices, price_dict):
+    """
+    Already in Trader class
+    """
     time_now = str(dt.datetime.now().time())[:8]
     
     df_trades.loc[time_now] = trade_dict
@@ -145,6 +150,8 @@ def get_holdings_and_bought_price(stocks):
 
 def convert_time_to_sec(time):
     """
+    Already in Trader class
+
     Input:
         time (str)
     Output:
@@ -187,6 +194,8 @@ def display_holdings(holdings):
 
 def update_output(iteration_num, tr, equity, holdings, cash, total_iteration_num=None):
     """
+    Already in Trader class
+
     Prints out the lastest information out to consol
     """
     
@@ -358,12 +367,6 @@ if __name__ == "__main__":
             average_iteration_runtime = 0
         
         cash_divisor, holdings_divisor = 5, 5
-        
-        if cash_divisor < len(stocks):
-            cash_divisor = len(stocks)
-        
-        if holdings_divisor < len(stocks):
-            holdings_divisor = len(stocks)
         
         while tr.continue_trading():
             iteration_runtime_start = time.time()
