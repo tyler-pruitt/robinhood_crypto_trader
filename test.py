@@ -26,8 +26,8 @@ def test_trader():
                 'cash': 2000,
                 'use_cash': True,
                 'loss_threshold': 50.00,
-                'holdings_divisor': 5,
-                'cash_divisor': 5
+                'holdings_factor': 0.20,
+                'cash_factor': 0.20
             }
 
     tr = trader.Trader(config)

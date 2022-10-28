@@ -41,8 +41,8 @@ class Trader():
             'cash': 2000,
             'use_cash': False,
             'loss_threshold': 50.00,
-            'holdings_divisor': 5,
-            'cash_divisor': 5
+            'holdings_factor': 0.20,
+            'cash_factor': 0.20
         }
         """
         self.check_config(config)
@@ -126,8 +126,8 @@ class Trader():
         if self.mode != 'backtest':
             self.average_iteration_runtime = 0
         
-        self.cash_divisor = config['cash_divisor']
-        self.holdings_divisor = config['holdings_divisor']
+        self.cash_factor = config['cash_factor']
+        self.holdings_factor = config['holdings_factor']
 
         self.trade_dict = {self.crypto[i]: 0 for i in range(0, len(self.crypto))}
         self.price_dict = {self.crypto[i]: 0 for i in range(0, len(self.crypto))}
@@ -218,7 +218,7 @@ class Trader():
                             
                             # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
 
-                            dollars_to_sell = self.cash / self.cash_divisor
+                            dollars_to_sell = self.cash * self.cash_factor
 
                             print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_sell, crypto_name, price))
 
@@ -281,7 +281,7 @@ class Trader():
                             if self.mode != 'backtest':
                                 price = round(float(self.get_latest_price(crypto_name)), 2)
                             
-                            holdings_to_sell = self.holdings[crypto_name] / self.holdings_divisor
+                            holdings_to_sell = self.holdings[crypto_name] * self.holdings_factor
 
                             print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
 
@@ -610,13 +610,13 @@ class Trader():
 
         assert type(config['determine_trade_function']) == str
 
-        assert type(config['cash_divisor']) == int or type(config['cash_divisor']) == float
+        assert type(config['cash_factor']) == int or type(config['cash_factor']) == float
         
-        assert config['cash_divisor'] > 0
+        assert config['cash_factor'] >= 0 and config['cash_factor'] <= 1
 
-        assert type(config['holdings_divisor']) == int or type(config['holdings_divisor']) == float
+        assert type(config['holdings_factor']) == int or type(config['holdings_factor']) == float
         
-        assert config['holdings_divisor'] > 0
+        assert config['holdings_factor'] > 0 and config['holdings_factor'] <= 1
         
         # Use rh.crypto.get_crypto_currency_pairs() for 'pairs' so that it is up-to-date
         
