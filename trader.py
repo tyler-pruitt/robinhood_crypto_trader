@@ -144,8 +144,150 @@ class Trader():
         return "Trader(id: " + self.id + ", profit: " + self.display_profit() + " (" + self.display_percent_change() + "), runtime: " + self.display_time(self.get_runtime()) + ")"
     
     def run(self):
+        """
+        Need to finish implementation
+        """
         try:
-            pass
+            print("cryptos: ", self.crypto)
+
+            if self.mode == 'backtest':
+                crypto_historicals = self.download_backtest_data()
+            
+            while self.continue_trading():
+                if self.mode != 'backtest':
+                    self.iteration_runtime_start = t.time()
+                
+                if self.mode == 'backtest':
+                    if self.backtest_index == len(crypto_historicals[0]):
+                        print("backtesting finished")
+
+                        break
+                    elif self.backtest_index > len(crypto_historicals[0]):
+                        print("not enough backtesting data to perform calculations")
+
+                        break
+                
+                prices = []
+                if self.mode != 'backtest':
+                    for crypto_symbol in self.crypto:
+                        prices += [self.get_latest_price(crypto_symbol)]
+                else:
+                    for i in range(len(self.crypto)):
+                        prices += [crypto_historicals[i][self.backtest_index]['close_price']]
+                
+                if self.use_cash == False or self.is_live:
+                    # Update holdings and bought_price
+                    self.holdings, self.bought_price = self.get_holdings_and_bought_price()
+
+                    # Update cash and equity
+                    self.cash, self.equity = self.get_cash()
+                else:
+                    # Update equity only
+                    _, self.equity = self.get_cash()
+                
+                # Set the profit for the trader (calling set_profit() also sets self.percent_change)
+                self.set_profit(self.cash + self.get_crypto_holdings_capital() - self.initial_capital)
+
+                # Update console
+                self.update_output()
+
+                if self.plot_portfolio_config:
+                    self.time_data += [self.get_runtime()]
+                    self.portfolio_data += [self.cash + self.get_crypto_holdings_capital()]
+
+                    self.plot_portfolio()
+                
+                for i, crypto_name in enumerate(self.crypto):
+                    price = float(prices[i])
+                    
+                    print('\n{} = ${}'.format(crypto_name, price))
+
+                    if self.mode != 'backtest':
+                        trade = self.determine_trade(crypto_name)
+                    else:
+                        trade = self.determine_trade(crypto_name, crypto_historicals)
+                    
+                    print('trade:', trade, end='\n\n')
+
+                    # Update cash for buy or sell calculations
+                    if self.use_cash == False or self.is_live:
+                        self.cash, self.equity = self.get_cash()
+
+                    if trade == 'BUY':
+                        if self.mode != 'backtest':
+                            price = round(float(self.get_latest_price(crypto_name)), 2)
+                        
+                        if self.cash > 0:
+                            
+                            # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
+
+                            dollars_to_sell = self.cash / self.cash_divisor
+
+                            print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_sell, crypto_name, price))
+
+                            if self.is_live:
+                                print("LIVE: Buy order is going through")
+
+                                if len(order.get_all_open_orders()) == 0:
+                                    print("No orders still in queue: new order will execute")
+
+                                    # Limit order by price
+                                    #order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=stock, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
+
+                                    # Market order
+                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=stock, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
+
+                                    self.orders += [order.Order(order_info)]
+
+                                    print("Order info:", order_info)
+
+                                    self.buy_times[i][dt.datetime.now()] = 'live_buy'
+                                else:
+                                    print("Orders are still in queue: order is canceled")
+                                    
+                                    trade = "UNABLE TO BUY (ORDERS STILL IN QUEUE)"
+                                    
+                                    self.buy_times[i][dt.datetime.now()] = 'unable_to_buy'
+                            else:
+                                print(self.mode + ': live buy order is not going through')
+
+                                # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
+
+                                self.cash -= dollars_to_sell
+
+                                holdings_to_add = dollars_to_sell / price
+
+                                self.bought_price[crypto_name] = ((self.bought_price[crypto_name] * self.holdings[crypto_name]) + (holdings_to_add * price)) / (self.holdings[crypto_name] + holdings_to_add)
+
+                                self.holdings[crypto_name] += holdings_to_add
+
+                                trade = 'SIMULATION BUY'
+
+                                if self.mode == 'safelive':
+                                    self.buy_times[i][dt.datetime.now()] = 'simulated_buy'
+                                else:
+                                    self.buy_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
+                        else:
+                            print('Not enough cash')
+
+                            trade = "UNABLE TO BUY (NOT ENOUGH CASH)"
+
+                            if self.mode != 'backtest':
+                                self.buy_times[i][dt.datetime.now()] = 'unable_to_buy'
+                            else:
+                                self.buy_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_buy'
+                    elif trade == 'SELL':
+                        if self.holdings[crypto_name] > 0:
+                            
+                            # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
+
+                            if self.mode != 'backtest':
+                                price = round(float(self.get_latest_price(crypto_name)), 2)
+                            
+                            holdings_to_sell = self.holdings[crypto_name] / self.holdings_divisor
+
+                            print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
+        
         except KeyboardInterrupt:
             print("User ended execution of program.")
             
@@ -883,8 +1025,9 @@ class Trader():
         plt.legend(('stock', 'upper_band', 'moving_average', 'lower_band'), loc='lower left')
         plt.show()
     
-    def plot_portfolio(self, time, portfolio):
-        plt.plot(time, portfolio, 'g-')
+    def plot_portfolio(self):
+
+        plt.plot(self.time_data, self.portfolio_data, 'g-')
         plt.title("Portfolio (cash + crypto equity)")
         plt.xlabel("Runtime (in seconds)")
         plt.ylabel("Price ($)")
