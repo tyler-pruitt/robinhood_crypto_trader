@@ -41,6 +41,7 @@ class Trader():
             'cash': 2000,
             'use_cash': False,
             'loss_threshold': 50.00,
+            'loss_percentage': 5.00,
             'holdings_factor': 0.20,
             'cash_factor': 0.20
         }
@@ -89,13 +90,16 @@ class Trader():
         
         self.use_cash = config['use_cash']
 
-        self.cash, self.equity = self.get_cash()
+        self.cash, self.equity = self.retrieve_cash_and_equity()
 
         # Initialization of holdings and bought price (necessary to be here due to different modes and cash initializations)
         self.holdings, self.bought_price = self.get_holdings_and_bought_price()
 
         # Loss threshold (in dollars) taken to be a positive value
         self.loss_threshold = config['loss_threshold']
+
+        # Loss threshold (in percent) taken to be a positive value (it is the percent of total capital lost)
+        self.loss_percentage = config['loss_percentage']
         
         # Need to set initial capital
         if self.use_cash == False or self.is_live:
@@ -177,13 +181,14 @@ class Trader():
                     self.holdings, self.bought_price = self.get_holdings_and_bought_price()
 
                     # Update cash and equity
-                    self.cash, self.equity = self.get_cash()
+                    self.cash, self.equity = self.retrieve_cash_and_equity()
                 else:
                     # Update equity only
-                    _, self.equity = self.get_cash()
+                    _, self.equity = self.retrieve_cash_and_equity()
                 
-                # Set the profit for the trader (calling set_profit() also sets self.percent_change)
+                # Set the profit and percent change for the trader
                 self.set_profit(self.cash + self.get_crypto_holdings_capital() - self.initial_capital)
+                self.set_percent_change(((self.cash + self.get_crypto_holdings_capital() - self.initial_capital) * 100) / self.initial_capital)
 
                 # Update console
                 self.update_output()
@@ -208,7 +213,7 @@ class Trader():
 
                     # Update cash for buy or sell calculations
                     if self.use_cash == False or self.is_live:
-                        self.cash, self.equity = self.get_cash()
+                        self.cash, self.equity = self.retrieve_cash_and_equity()
 
                     if trade == 'BUY':
                         if self.mode != 'backtest':
@@ -424,16 +429,27 @@ class Trader():
         
         print("logout successful")
     
-    def get_cash(self):
+    def retrieve_cash_and_equity(self):
         rh_cash = rh.account.build_user_profile()
-
+        
         cash = float(rh_cash['cash'])
         equity = float(rh_cash['equity'])
         
         return cash, equity
     
+    def get_cash(self):
+        return self.cash
+    
+    def set_cash(self, cash):
+        self.cash = cash
+    
+    def get_equity(self):
+        return self.equity
+    
+    def set_equity(self, equity):
+        self.equity = equity
+    
     def get_latest_price(self, crypto_symbol):
-        
         return rh.crypto.get_crypto_quote(crypto_symbol)['mark_price']
     
     def get_crypto_holdings_capital(self):
@@ -608,6 +624,10 @@ class Trader():
         
         assert config['loss_threshold'] >= 0
 
+        assert type(config['loss_percentage']) == float or type(config['loss_percentage']) == int
+
+        assert config['loss_percentage'] >= 0
+
         assert type(config['determine_trade_function']) == str
 
         assert type(config['cash_factor']) == int or type(config['cash_factor']) == float
@@ -686,6 +706,18 @@ class Trader():
     def get_percent_change(self):
         return self.percent_change
     
+    def set_percent_change(self, percent_change):
+        self.percent_change = percent_change
+    
+    def get_loss_percentage(self):
+        return self.loss_percentage
+    
+    def set_loss_percentage(self, loss_percentage):
+        if loss_percentage >= 0:
+            self.loss_percentage = loss_percentage
+        else:
+            print('Loss percentage (%) must be set to a POSITIVE value: loss percentage not reset')
+    
     def continue_trading(self, override=None):
         if override != None:
             assert type(override) == bool
@@ -693,6 +725,8 @@ class Trader():
             return override
         else:
             if self.get_profit() >= -1 * self.get_loss_threshold():
+                return True
+            elif self.get_percent_change() >= -1 * self.get_loss_percentage():
                 return True
             else:
                 print("Loss exceeded $" + str(self.get_loss_threshold()) + ": terminating automated trading")
@@ -734,18 +768,13 @@ class Trader():
         if loss >= 0:
             self.loss_threshold = loss
         else:
-            print("Loss must be set to a POSITIVE value: loss threshold not reset")
+            print("Loss threshold (in dollars) must be set to a POSITIVE value: loss threshold not reset")
     
     def get_runtime(self):
         return t.time() - self.start_time
 
     def set_profit(self, profit):
-        """
-        Sets Trader.profit and Trader.percent_change accordingly
-        """
         self.profit = profit
-        
-        self.percent_change = (profit * 100) / self.initial_capital
     
     def get_profit(self):
         return self.profit
@@ -794,8 +823,8 @@ class Trader():
     def get_start_time(self):
         return self.start_time
     
-    def set_start_time(self, time):
-        self.start_time = time
+    def set_start_time(self, start_time):
+        self.start_time = start_time
     
     def get_historical_data(self, crypto_symbol):
         """

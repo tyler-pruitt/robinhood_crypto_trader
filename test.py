@@ -1,5 +1,16 @@
 import trader
 
+def personal_strategy(crypto, times, prices):
+    """
+    Inputs:
+        crypto: string, name of cryptocurrency, e.g. 'BTC', 'ETH'
+        times: list of string, time points associated with the prices by index
+        prices: list of floats, price points associated with the times by index
+    Output:
+        trade: string, can be either 'BUY', 'SELL', or 'HOLD'
+    """
+    return -1
+
 def test_trader():
     config = {
                 'crypto': ['BTC', 'ETH'],
@@ -22,10 +33,11 @@ def test_trader():
                     'span': 'hour',
                     'bounds': '24_7'
                 },
-                'determine_trade_function': 'function_name',
+                'determine_trade_function': 'personal_strategy',
                 'cash': 2000,
                 'use_cash': True,
                 'loss_threshold': 50.00,
+                'loss_percentage': 5,
                 'holdings_factor': 0.20,
                 'cash_factor': 0.20
             }
