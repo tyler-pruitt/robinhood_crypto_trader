@@ -56,10 +56,14 @@ config = {
     'loss_threshold': 50.00,
     'loss_percentage': 5,
     'holdings_factor': 0.20,
-    'cash_factor': 0.20
+    'cash_factor': 0.20,
+    'buy_order_type': 'market',
+    'sell_order_type': 'market'
 }
 
 tr = trader.Trader(config)
 
 tr.run()
+
+tr.logout()
 ```

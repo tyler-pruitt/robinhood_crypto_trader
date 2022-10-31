@@ -10,6 +10,7 @@ import sys
 
 from indicators import MA, EMA, RSI, MACD, BOLL
 import order
+import strategy
 
 import robin_stocks.robinhood as rh
 
@@ -43,7 +44,9 @@ class Trader():
             'loss_threshold': 50.00,
             'loss_percentage': 5.00,
             'holdings_factor': 0.20,
-            'cash_factor': 0.20
+            'cash_factor': 0.20,
+            'buy_order_type': 'market',
+            'sell_order_type': 'market'
         }
         """
         self.check_config(config)
@@ -59,6 +62,12 @@ class Trader():
         self.plot_portfolio_config = config['plot_portfolio']
         self.mode = config['mode']
         self.determine_trade_func = config['determine_trade_function']
+        
+        self.login()
+
+        # self.buy_order_type and self.sell_order_type are only used when self.mode == 'live'
+        self.buy_order_type = config['buy_order_type']
+        self.sell_order_type = config['sell_order_type']
 
         if self.mode == 'backtest':
             self.backtest_interval = config['backtest']['interval']
@@ -138,8 +147,6 @@ class Trader():
         
         self.df_trades = pd.DataFrame(columns=self.crypto)
         self.df_prices = pd.DataFrame(columns=self.crypto)
-        
-        self.login()
     
     def __repr__(self):
         """
@@ -233,12 +240,13 @@ class Trader():
                                 if len(order.get_all_open_orders()) == 0:
                                     print("No orders still in queue: new order will execute")
 
-                                    # Limit order by price
-                                    #order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=stock, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
-
-                                    # Market order
-                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
-
+                                    if self.buy_order_type == 'limit':
+                                        # Limit order by price
+                                        order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
+                                    else:
+                                        # Market order
+                                        order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
+                                    
                                     self.orders += [order.Order(order_info)]
 
                                     print("Order info:", order_info)
@@ -296,12 +304,13 @@ class Trader():
                                 if len(order.get_all_open_orders()) == 0:
                                     print("No orders still in queue: new order will execute")
 
-                                    # Limit order by price for a set quantity
-                                    #order_info = rh.orders.order_sell_crypto_limit(symbol=stock, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
-
-                                    # Market order
-                                    order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
-
+                                    if self.sell_order_type == 'limit':
+                                        # Limit order by price for a set quantity
+                                        order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
+                                    else:
+                                        # Market order
+                                        order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
+                                    
                                     self.orders += [order.Order(order_info)]
 
                                     print("Order info:", order_info)
@@ -348,7 +357,7 @@ class Trader():
                     
                     self.trade_dict[crypto_name] = trade
                 
-                self.df_trades, self.df_prices = self.build_dataframes(self.df_trades, self.trade_dict, self.df_prices, self.price_dict)
+                self.df_trades, self.df_prices = self.build_dataframes()
 
                 print('\ndf_prices \n', self.df_prices, end='\n\n')
                 print('df_trades \n', self.df_trades, end='\n\n')
@@ -380,26 +389,24 @@ class Trader():
                 
                 self.iteration_number += 1
             
-            self.logout()
-            
             if self.export_csv_config:
                 self.export_csv()
         
         except KeyboardInterrupt:
             print("User ended execution of program.")
             
-            self.logout()
-            
             if self.export_csv_config:
                 self.export_csv()
+
+            self.logout()
         
         except Exception:
             print("An error occured: stopping process")
-            
-            self.logout()
-            
+
             if self.export_csv_config:
                 self.export_csv()
+            
+            self.logout()
             
             print("Error message:", sys.exc_info())
         
@@ -430,9 +437,12 @@ class Trader():
         print("login successful")
     
     def logout(self):
-        rh.authentication.logout()
-        
-        print("logout successful")
+        try:
+            rh.authentication.logout()
+            
+            print('logout successful')
+        except:
+            print('logout() can only be called when logged in')
     
     def retrieve_cash_and_equity(self):
         rh_cash = rh.account.build_user_profile()
@@ -505,9 +515,9 @@ class Trader():
         """
         
         if self.mode != 'backtest':
-            print("======================ITERATION " + str(self.iteration_num) + "======================")
+            print("======================ITERATION " + str(self.iteration_number) + "======================")
         else:
-            print("======================ITERATION " + str(self.iteration_num) + '/' + str(self.total_iteration_num) + "======================")
+            print("======================ITERATION " + str(self.iteration_number) + '/' + str(self.total_iteration_num) + "======================")
         
         print("mode: " + self.mode)
         print("runtime: " + self.display_time(self.get_runtime()))
@@ -632,7 +642,7 @@ class Trader():
         assert type(config['loss_percentage']) == float or type(config['loss_percentage']) == int
 
         assert config['loss_percentage'] >= 0
-
+        
         assert type(config['determine_trade_function']) == str
 
         assert type(config['cash_factor']) == int or type(config['cash_factor']) == float
@@ -642,6 +652,16 @@ class Trader():
         assert type(config['holdings_factor']) == int or type(config['holdings_factor']) == float
         
         assert config['holdings_factor'] > 0 and config['holdings_factor'] <= 1
+
+        assert type(config['buy_order_type']) == str
+
+        assert type(config['sell_order_type']) == str
+
+        order_types = ['market', 'limit']
+
+        assert config['buy_order_type'] in order_types
+
+        assert config['sell_order_type'] in order_types
         
         # Use rh.crypto.get_crypto_currency_pairs() for 'pairs' so that it is up-to-date
         
@@ -897,7 +917,7 @@ class Trader():
         if self.determine_trade_func in ['boll', 'macd_rsi']:
             trade = eval('self.' + self.determine_trade_func + '(crypto_symbol, times, prices)')
         else:
-            trade = eval(self.determine_trade_func + '(crypto_symbol, times, prices')
+            trade = eval('strategy.' + self.determine_trade_func + '(crypto_symbol, times, prices)')
             
             assert trade in ['BUY', 'SELL', 'HOLD']
 

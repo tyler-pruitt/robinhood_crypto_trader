@@ -86,7 +86,7 @@ class Order():
         self.updated_at = order_info['updated_at']
     
     def __repr__(self):
-        return 'order_id:' + str(self.id)
+        return 'order_id:' + str(self.id) + ', side:' + self.side + ', state:' + self.state
     
     def is_filled(self):
         if self.state == "filled":
