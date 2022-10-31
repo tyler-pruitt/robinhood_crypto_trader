@@ -379,6 +379,11 @@ class Trader():
                     self.backtest_index += 1
                 
                 self.iteration_number += 1
+            
+            self.logout()
+            
+            if self.export_csv_config:
+                self.export_csv()
         
         except KeyboardInterrupt:
             print("User ended execution of program.")
