@@ -150,10 +150,7 @@ class Trader():
         self.df_prices = pd.DataFrame(columns=self.crypto)
     
     def __repr__(self):
-        """
-        Need to finish implementation
-        """
-        return "Trader(id: " + self.id + ", profit: " + self.display_profit() + " (" + self.display_percent_change() + "), runtime: " + self.display_time(self.get_runtime()) + ")"
+        return 'Trader{\n\tid: ' + self.id + '\n\tcrypto: ' + str(self.crypto) + '\n\tmode: ' + self.mode + '\n\tdetermine_trade_function: ' + self.determine_trade_func + '\n\tcash: $' + str(self.cash) + '\n\tuse_cash: ' + str(self.use_cash) + '\n\tholdings: ' + str(self.holdings) + '\n\tbuy_order_type: ' + self.buy_order_type + '\n\tsell_order_type: ' + self.sell_order_type + '\n\tequity: $' + str(self.equity) + '\n\taverage_bought_price: ' + str(self.bought_price) + '\n\tinterval: ' + self.interval + '\n\tspan: ' + self.span + '\n\tbounds: ' + self.bounds + '\n\tloss_threshold: $' + str(self.loss_threshold) + '\n\tloss_percentage: ' + str(self.loss_percentage) + '%\n\tcash_factor: ' + str(self.cash_factor) + '\n\tholdings_factor: ' + str(self.holdings_factor) + '\n\tprofit: ' + self.display_profit() + '\n\tpercent_change: ' + self.display_percent_change() + '\n\titeration_number: ' + str(self.iteration_number) + '\n\tinitial_capital: $' + str(self.initial_capital) + '\n\truntime: ' + self.display_time(self.get_runtime()) + '\n}'
     
     def run(self):
         try:
@@ -245,13 +242,13 @@ class Trader():
                                         # Limit order by price
                                         order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
 
-                                        trade_activity = 'side: BUY, crypto: ' + crypto_name + ', amount: ' + str(dollars_to_sell) + 'type: limit, price: ' + str(price)
+                                        trade_activity = 'BUY ${} of {} at limit price ${}'.format(dollars_to_sell, crypto_name, price)
                                         self.post_activity(trade_activity)
                                     else:
                                         # Market order
                                         order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
 
-                                        trade_activity = 'side: BUY, crypto: ' + crypto_name + ', amount: ' + str(dollars_to_sell) + 'type: market, price: ' + str(price)
+                                        trade_activity = 'BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
                                         self.post_activity(trade_activity)
                                     
                                     self.orders += [order.Order(order_info)]
@@ -281,7 +278,7 @@ class Trader():
                                 trade = 'SIMULATION BUY'
 
                                 if self.mode != 'backtest':
-                                    trade_activity = 'side: BUY, crypto: ' + crypto_name + ', amount: ' + str(dollars_to_sell) + ', price: ' + str(price)
+                                    trade_activity = 'BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
                                     self.post_activity(trade_activity)
 
                                 if self.mode == 'safelive':
@@ -319,13 +316,13 @@ class Trader():
                                         # Limit order by price for a set quantity
                                         order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
 
-                                        trade_activity = 'side: SELL, crypto: ' + crypto_name + ', amount: ' + str(holdings_to_sell) + 'type: limit, price: ' + str(price)
+                                        trade_activity = 'SELL {} of {} at limit price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
                                         self.post_activity(trade_activity)
                                     else:
                                         # Market order
                                         order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
 
-                                        trade_activity = 'side: SELL, crypto: ' + crypto_name + ', amount: ' + str(holdings_to_sell) + 'type: market, price: ' + str(price)
+                                        trade_activity = 'SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
                                         self.post_activity(trade_activity)
                                     
                                     self.orders += [order.Order(order_info)]
@@ -357,7 +354,7 @@ class Trader():
                                 trade = 'SIMULATION SELL'
 
                                 if self.mode != 'backtest':
-                                    trade_activity = 'side: SELL, crypto: ' + crypto_name + ', amount: ' + str(holdings_to_sell) + ', price: ' + str(price)
+                                    trade_activity = 'SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
                                     self.post_activity(trade_activity)
 
                                 if self.mode == 'safelive':
@@ -544,8 +541,7 @@ class Trader():
     def post_activity(self, trade_activity):
         webhook_url = 'https://discord.com/api/webhooks/1037145330933837885/0lq_nl38i3dksfYV1VAFRMIL8d94z3fn-9q7RIFS_JOPhC2WDcKROUbpKA_eCjPQ_ehG'
         
-        webhook_content = 'Trader\nid: ' + self.id + '\ncrypto: ' + str(self.crypto) + '\nmode: ' + self.mode + '\ndetermine_trade_function: ' + self.determine_trade_func + '\ncash: ' + str(self.cash) + '\nuse_cash: ' + str(self.use_cash) + '\nholdings: ' + str(self.holdings) + '\nbuy_order_type: ' + self.buy_order_type + '\nsell_order_type: ' + self.sell_order_type + '\nequity: ' + str(self.equity) + '\naverage_bought_price: ' + str(self.bought_price) + '\ninterval: ' + self.interval + '\nspan: ' + self.span + '\nbounds: ' + self.bounds + '\nloss_threshold: ' + str(self.loss_threshold) + '\nloss_percentage: ' + str(self.loss_percentage) + '\ncash_factor: ' + str(self.cash_factor) + '\nholdings_factor: ' + str(self.holdings_factor) + '\nprofit: ' + str(self.profit) + '\npercent_change: ' + str(self.percent_change) + '\niteration_number: ' + str(self.iteration_number) + '\ninitial_capital: ' + str(self.initial_capital) + '\nruntime: ' + self.display_time(self.get_runtime()) + '\n\n'
-        webhook_content += trade_activity
+        webhook_content = trade_activity + '\n\n' + repr(self)
         
         webhook = DiscordWebhook(url=webhook_url, content=webhook_content)
         
@@ -612,7 +608,7 @@ class Trader():
         print("total equity: $" + str(self.equity))
         
         print('crypto holdings:')
-        self.display_holdings()
+        print(self.display_holdings())
         
         print("total crypto equity: $" + str(self.get_crypto_holdings_capital()))
         print("cash: $" + str(self.cash))
@@ -682,10 +678,16 @@ class Trader():
         return holdings, bought_price
     
     def display_holdings(self):
+        text = ''
+
         for crypto, amount in self.holdings.items():
             
-            print('\t' + str(amount) + ' ' + crypto + " at $" + str(self.get_latest_price(crypto)))
-    
+            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(self.get_latest_price(crypto)) + '\n'
+        
+        text = text[:-2]
+        
+        return text
+        
     def download_backtest_data(self):
         """
         Assumes that self.mode is 'backtest'
