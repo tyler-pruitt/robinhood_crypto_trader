@@ -278,7 +278,7 @@ class Trader():
                                 trade = 'SIMULATION BUY'
 
                                 if self.mode != 'backtest':
-                                    trade_activity = 'BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
+                                    trade_activity = 'Simulated BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
                                     self.post_activity(trade_activity)
 
                                 if self.mode == 'safelive':
@@ -354,7 +354,7 @@ class Trader():
                                 trade = 'SIMULATION SELL'
 
                                 if self.mode != 'backtest':
-                                    trade_activity = 'SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
+                                    trade_activity = 'Simulated SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
                                     self.post_activity(trade_activity)
 
                                 if self.mode == 'safelive':
@@ -494,40 +494,7 @@ class Trader():
 
         # Ensure that all possible crypto_symbol can be found using payment_address
         # E.g. 'BTC' and 'BTC-USD' need to both point to Bitcoin
-        payment_address = {'BTC': 'bc1qvljdr72k3tz6w8k6hpnhv3722fmsgftkeeakx8',
-        'BTC-USD': 'bc1qvljdr72k3tz6w8k6hpnhv3722fmsgftkeeakx8',
-        'ETH': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'ETH-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'USDC': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'USDC-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'MATIC': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'MATIC-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'SHIB': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'SHIB-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'AVAX': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'AVAX-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'UNI': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'UNI-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'LINK': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'LINK-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'COMP': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'COMP-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'AAVE': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'AAVE-USD': '0xDd5E232561177e5E48432F6BA4fD12173Bbe869A',
-        'ADA': 'addr1q8g90gwc2u82fnv6m0pw7crervtslar746rxx06apfcf44cg6h5us0avc20ee2azzun58lgylyl54sjr6y9efwq86krst57w35',
-        'ADA-USD': 'addr1q8g90gwc2u82fnv6m0pw7crervtslar746rxx06apfcf44cg6h5us0avc20ee2azzun58lgylyl54sjr6y9efwq86krst57w35',
-        'SOL': 'EzQveUMk45NmuftUSGLqRH8DUBmxzCpS3HuEchFc5t1X',
-        'SOL-USD': 'EzQveUMk45NmuftUSGLqRH8DUBmxzCpS3HuEchFc5t1X',
-        'DOGE': 'DQCzww2Sz9UhtAaMZbHHGofng1ioRgTkEu',
-        'DOGE-USD': 'DQCzww2Sz9UhtAaMZbHHGofng1ioRgTkEu',
-        'ETC': '0x42D1125fB02D0eaAA3b0D57330EC46AaF5F95F15',
-        'ETC-USD': '0x42D1125fB02D0eaAA3b0D57330EC46AaF5F95F15',
-        'LTC': 'ltc1qvwzqm4jxqt0gjf7fwzxpnvtlssxtc9lutrnxsh',
-        'LTC-USD': 'ltc1qvwzqm4jxqt0gjf7fwzxpnvtlssxtc9lutrnxsh',
-        'BCH': 'bitcoincash:qr4h4edxt5muv2ns3kls0d4ca8lezu8x9v9d4r227h',
-        'BCH-USD': 'bitcoincash:qr4h4edxt5muv2ns3kls0d4ca8lezu8x9v9d4r227h',
-        'XTZ': 'tz1Wexc9bv6BxCBgyXwaqmJq1RNYxXBr9aff',
-        'XTZ-USD': 'tz1Wexc9bv6BxCBgyXwaqmJq1RNYxXBr9aff'}
+        payment_address = {}
 
         receive_address = payment_address.get(crypto_symbol)
 
@@ -541,9 +508,7 @@ class Trader():
     def post_activity(self, trade_activity):
         webhook_url = 'https://discord.com/api/webhooks/1037145330933837885/0lq_nl38i3dksfYV1VAFRMIL8d94z3fn-9q7RIFS_JOPhC2WDcKROUbpKA_eCjPQ_ehG'
         
-        webhook_content = trade_activity + '\n\n' + repr(self)
-        
-        webhook = DiscordWebhook(url=webhook_url, content=webhook_content)
+        webhook = DiscordWebhook(url=webhook_url, content=trade_activity)
         
         response = webhook.execute()
     
