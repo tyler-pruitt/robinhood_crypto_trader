@@ -7,13 +7,11 @@ import matplotlib.dates as dates
 import pandas_ta as ta
 import random as r
 import sys
+import robin_stocks.robinhood as rh
+from discord_webhook import DiscordWebhook
 
 from indicators import MA, EMA, RSI, MACD, BOLL
 import order
-import strategy
-
-import robin_stocks.robinhood as rh
-from discord_webhook import DiscordWebhook
 
 class Trader():
     def __init__(self, config):
@@ -971,7 +969,8 @@ class Trader():
         if self.determine_trade_func in ['boll', 'macd_rsi']:
             trade = eval('self.' + self.determine_trade_func + '(crypto_symbol, times, prices)')
         else:
-            trade = eval('strategy.' + self.determine_trade_func + '(crypto_symbol, times, prices)')
+            # Need to finish implementation for personalized trading strategies
+            trade = 'HOLD'
             
             assert trade in ['BUY', 'SELL', 'HOLD']
 
