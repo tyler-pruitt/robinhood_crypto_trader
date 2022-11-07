@@ -33,7 +33,7 @@ def test_trader():
         'sell_order_type': 'market'
     }
 
-    tr = rct.Trader(config)
+    tr = rct.trader.Trader(config)
 
     tr.run()
 
