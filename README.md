@@ -23,8 +23,12 @@ A Python package for an automated cryptocurrency trader on the popular trading p
 Join Robinhood with my link and we'll both pick our own free stock 🤝 https://join.robinhood.com/tylerp5773
 
 ## How to run the code:
-### 1. place all files in the same folder 
-### 2. run code which follows the example code:
+### 1. Install the Python package
+```
+>>> pip install robinhood_crypto_trader
+```
+
+### 2. Run code which follows the example code:
 
 ```python
 import robinhood_crypto_trader as rct
