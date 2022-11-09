@@ -1,8 +1,8 @@
 """
 Issues:
-- ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode
+- ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
 - Error catching for Robinhood internal errors
-- Rounding errors for in self.run()
+- Rounding errors for in self.run(), use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
 """
 
 import numpy as np
@@ -10,7 +10,6 @@ import pandas as pd
 import datetime as dt
 import time as t
 import matplotlib.pyplot as plt
-import matplotlib.dates as dates
 import pandas_ta as ta
 import random as r
 import sys
@@ -100,7 +99,7 @@ class Trader():
                 self.is_live = False
         
         if self.is_live:
-            self.orders = []
+            self.orders = {crypto_name: [] for crypto_name in self.crypto}
         
         self.use_cash = config['use_cash']
 
@@ -237,38 +236,26 @@ class Trader():
                             print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_sell, crypto_name, price))
 
                             if self.is_live:
-                                print("LIVE: Buy order is going through")
 
-                                if len(order.get_all_open_orders()) == 0:
-                                    print("No orders still in queue: new order will execute")
+                                if self.buy_order_type == 'limit':
+                                    # Limit order by price
+                                    order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
 
-                                    if self.buy_order_type == 'limit':
-                                        # Limit order by price
-                                        order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
-
-                                        trade_activity = 'BUY ${} of {} at limit price ${}'.format(dollars_to_sell, crypto_name, price)
-                                        self.post_activity(trade_activity)
-                                    else:
-                                        # Market order
-                                        order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
-
-                                        trade_activity = 'BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
-                                        self.post_activity(trade_activity)
-                                    
-                                    self.orders += [order.Order(order_info)]
-
-                                    print("Order info:", order_info)
-
-                                    self.buy_times[i][dt.datetime.now()] = 'live_buy'
+                                    trade_activity = 'BUY ${} of {} at limit price ${}'.format(dollars_to_sell, crypto_name, price)
+                                    self.post_activity(trade_activity)
                                 else:
-                                    print("Orders are still in queue: order is canceled")
-                                    
-                                    trade = "UNABLE TO BUY (ORDERS STILL IN QUEUE)"
-                                    
-                                    self.buy_times[i][dt.datetime.now()] = 'unable_to_buy'
-                            else:
-                                print(self.mode + ': live buy order is not going through')
+                                    # Market order
+                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
 
+                                    trade_activity = 'BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
+                                    self.post_activity(trade_activity)
+                                
+                                self.orders[crypto_name] += [order.Order(order_info)]
+
+                                print("Order info:", order_info)
+
+                                self.buy_times[i][dt.datetime.now()] = 'live_buy'
+                            else:
                                 # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
 
                                 self.cash -= dollars_to_sell
@@ -311,41 +298,26 @@ class Trader():
                             print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
 
                             if self.is_live:
-                                print("LIVE: Sell order is going through")
 
-                                if len(order.get_all_open_orders()) == 0:
-                                    print("No orders still in queue: new order will execute")
+                                if self.sell_order_type == 'limit':
+                                    # Limit order by price for a set quantity
+                                    order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
 
-                                    if self.sell_order_type == 'limit':
-                                        # Limit order by price for a set quantity
-                                        order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
-
-                                        trade_activity = 'SELL {} of {} at limit price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
-                                        self.post_activity(trade_activity)
-                                    else:
-                                        # Market order
-                                        order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
-
-                                        trade_activity = 'SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
-                                        self.post_activity(trade_activity)
-                                    
-                                    self.orders += [order.Order(order_info)]
-
-                                    print("Order info:", order_info)
-
-                                    self.sell_times[i][dt.datetime.now()] = 'live_sell'
+                                    trade_activity = 'SELL {} of {} at limit price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
+                                    self.post_activity(trade_activity)
                                 else:
-                                    print("Orders are still in queue: order is canceled")
+                                    # Market order
+                                    order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
 
-                                    trade = 'UNABLE TO SELL (ORDERS STILL IN QUEUE)'
+                                    trade_activity = 'SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
+                                    self.post_activity(trade_activity)
+                                
+                                self.orders[crypto_name] += [order.Order(order_info)]
 
-                                    if self.mode == 'safelive':
-                                        self.sell_times[i][dt.datetime.now()] = 'unable_to_sell'
-                                    else:
-                                        self.sell_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
+                                print("Order info:", order_info)
+
+                                self.sell_times[i][dt.datetime.now()] = 'live_sell'
                             else:
-                                print(self.mode + ': live sell order is not going through')
-
                                 # Simulate selling the crypto by adding to cash and substracting from holdings
                                 self.cash += holdings_to_sell * price
 
@@ -403,9 +375,10 @@ class Trader():
                     if wait_time < 0:
                         wait_time = 0
                     
-                    print('Waiting ' + str(round(wait_time, 2)) + ' seconds...')
+                    if wait_time > 0:
+                        print('Waiting ' + str(round(wait_time, 2)) + ' seconds...')
 
-                    t.sleep(wait_time)
+                        t.sleep(wait_time)
                 else:
                     self.backtest_index += 1
                 
@@ -424,12 +397,13 @@ class Trader():
         
         except TypeError:
             # Robinhood Internal Error
+            print("Robinhood Internal Error: continuing trading")
 
             # Continue trading
             self.run()
         
         except Exception:
-            print("An error occured: stopping process")
+            print("An unexpected error occured: stopping trading")
 
             if self.export_csv_config:
                 self.export_csv()
@@ -470,7 +444,7 @@ class Trader():
             
             print('logout successful')
         except:
-            print('already logged out: logout() can only be called when logged in')
+            print('already logged out: logout() can only be called when currently logged in')
     
     def retrieve_cash_and_equity(self):
         rh_cash = rh.account.build_user_profile()
@@ -580,16 +554,20 @@ class Trader():
         print("mode: " + self.mode)
         print("runtime: " + self.display_time(self.get_runtime()))
         
-        print("total equity: $" + str(self.equity))
+        print("equity: $" + str(round(self.equity, 2)))
         
         print('crypto holdings:')
         print(self.display_holdings())
         
-        print("total crypto equity: $" + str(self.get_crypto_holdings_capital()))
-        print("cash: $" + str(self.cash))
-        print("total crypto equity and cash: $" + str(self.cash + self.get_crypto_holdings_capital()))
+        print("crypto equity: $" + str(round(self.get_crypto_holdings_capital(), 2)))
+        print("cash: $" + str(round(self.cash, 2)))
+        print("crypto equity and cash: $" + str(round(self.cash + self.get_crypto_holdings_capital(), 2)))
         
         print("profit: " + self.display_profit() + " (" + self.display_percent_change() + ")")
+
+        if self.is_live:
+            print("number of pending orders:", len(order.get_all_open_orders()))
+            print("number of orders:", {crypto_symbol: len(self.orders[crypto_symbol]) for crypto_symbol in self.crypto})
     
     def build_dataframes(self):
         """

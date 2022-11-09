@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import robin_stocks.robinhood as rh
 
 def cancel_all_orders():
