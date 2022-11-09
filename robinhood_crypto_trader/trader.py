@@ -1,3 +1,10 @@
+"""
+Issues:
+- ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode
+- Error catching for Robinhood internal errors
+- Rounding errors for in self.run()
+"""
+
 import numpy as np
 import pandas as pd
 import datetime as dt
@@ -412,8 +419,14 @@ class Trader():
             
             if self.export_csv_config:
                 self.export_csv()
-
+            
             self.logout()
+        
+        except TypeError:
+            # Robinhood Internal Error
+
+            # Continue trading
+            self.run()
         
         except Exception:
             print("An error occured: stopping process")
@@ -502,10 +515,10 @@ class Trader():
             # Send the amount in crypto to receive_address
             return
     
-    def post_activity(self, trade_activity):
+    def post_activity(self, activity):
         webhook_url = 'https://discord.com/api/webhooks/1037145330933837885/0lq_nl38i3dksfYV1VAFRMIL8d94z3fn-9q7RIFS_JOPhC2WDcKROUbpKA_eCjPQ_ehG'
         
-        webhook = DiscordWebhook(url=webhook_url, content=trade_activity)
+        webhook = DiscordWebhook(url=webhook_url, content=activity)
         
         response = webhook.execute()
     
@@ -1369,7 +1382,6 @@ class Trader():
         plt.show()
     
     def plot_portfolio(self):
-
         plt.plot(self.time_data, self.portfolio_data, 'g-')
         plt.title("Portfolio (cash + crypto equity)")
         plt.xlabel("Runtime (in seconds)")
