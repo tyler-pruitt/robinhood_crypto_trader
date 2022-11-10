@@ -1,4 +1,4 @@
-# robinhood-crypto-trader
+# robinhood_crypto_trader
 A Python package for an automated cryptocurrency trader on the popular trading platform Robinhood
 
 ## Donate to this project and help support open-sourced financial software (anything helps!)
