@@ -1,4 +1,4 @@
-import robinhood_crypto_trader as rct
+import robinhood_crypto_trader.crypto_trader as rct
 
 def test_trader():
     config = {
@@ -33,7 +33,7 @@ def test_trader():
         'sell_order_type': 'market'
     }
 
-    tr = rct.trader.Trader(config)
+    tr = rct.Trader(config)
 
     tr.run()
 
