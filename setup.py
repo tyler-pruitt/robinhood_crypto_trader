@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="robinhood_crypto_trader",
-    version="1.0.2",
+    version="1.0.3",
     author="Tyler Pruitt",
     description="A Python package for an automated cryptocurrency trader on the popular trading platform Robinhood",
     url="https://github.com/tyler-pruitt/robinhood_crypto_trader",
