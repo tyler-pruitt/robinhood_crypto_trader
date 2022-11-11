@@ -1,1 +1,1 @@
-from robinhood_crypto_trader import trader
+from robinhood_crypto_trader import crypto_trader
