@@ -16,7 +16,6 @@ import sys
 import robin_stocks.robinhood as rh
 from discord_webhook import DiscordWebhook
 
-import order
 from robinhood_crypto_trader.crypto_trader.order import *
 
 class Trader():
@@ -567,7 +566,7 @@ class Trader():
         print("profit: " + self.display_profit() + " (" + self.display_percent_change() + ")")
 
         if self.is_live:
-            print("number of pending orders:", len(order.get_all_open_orders()))
+            print("number of pending orders:", len(get_all_open_orders()))
             print("number of orders:", {crypto_symbol: len(self.orders[crypto_symbol]) for crypto_symbol in self.crypto})
     
     def build_dataframes(self):
