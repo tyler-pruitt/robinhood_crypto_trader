@@ -405,6 +405,7 @@ class Trader():
         except KeyError:
             # Robinhood Internal Error
             # 503 Service Error: Service Unavailable for url: https://api.robinhood.com/portfolios/
+            # 500 Server Error: Internal Server Error for url: https://api.robinhood.com/portfolios/
             print("Robinhood Internal Error: KeyError: continuing trading")
             
             # Continue trading
