@@ -396,8 +396,9 @@ class Trader():
         
         except TypeError:
             # Robinhood Internal Error
+            # 503 Server Error: Service Unavailable for url: https://api.robinhood.com/marketdata/forex/quotes/76637d50-c702-4ed1-bcb5-5b0732a81f48/
             print("Robinhood Internal Error: TypeError: continuing trading")
-
+            
             # Continue trading
             self.run()
         
