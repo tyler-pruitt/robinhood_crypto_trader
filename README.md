@@ -24,7 +24,7 @@ Join Robinhood with my link and we'll both pick our own free stock 🤝 https://
 
 ## Installation
 ```
->>> pip install robinhood-crypto-trader
+pip install robinhood-crypto-trader
 ```
 
 ## Example Usage
