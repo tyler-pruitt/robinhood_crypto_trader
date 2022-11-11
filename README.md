@@ -22,13 +22,12 @@ An unofficial Python package for an automated cryptocurrency trader on the popul
 ## New to Robinhood?
 Join Robinhood with my link and we'll both pick our own free stock 🤝 https://join.robinhood.com/tylerp5773
 
-## How to run the code:
-### 1. Install the Python package
+## Installation
 ```
 >>> pip install robinhood-crypto-trader
 ```
 
-### 2. Run code which follows the example code:
+## Example Usage
 
 ```python
 import robinhood_crypto_trader.crypto_trader as rct
@@ -54,7 +53,7 @@ config = {
         'span': 'hour',
         'bounds': '24_7'
     },
-    'determine_trade_function': 'personal_strategy',
+    'determine_trade_function': 'boll',
     'cash': 2000,
     'use_cash': True,
     'loss_threshold': 50.00,
@@ -71,3 +70,6 @@ tr.run()
 
 tr.logout()
 ```
+
+## Documentation
+Currently in progress
