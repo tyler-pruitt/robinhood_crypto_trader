@@ -31,7 +31,7 @@ Join Robinhood with my link and we'll both pick our own free stock 🤝 https://
 ### 2. Run code which follows the example code:
 
 ```python
-import robinhood_crypto_trader as rct
+import robinhood_crypto_trader.crypto_trader as rct
 
 config = {
     'crypto': ['BTC', 'ETH'],
@@ -65,7 +65,7 @@ config = {
     'sell_order_type': 'market'
 }
 
-tr = rct.crypto_trader.Trader(config)
+tr = rct.Trader(config)
 
 tr.run()
 
