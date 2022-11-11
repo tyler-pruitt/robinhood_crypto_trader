@@ -17,6 +17,7 @@ import robin_stocks.robinhood as rh
 from discord_webhook import DiscordWebhook
 
 import order
+from robinhood_crypto_trader.crypto_trader.order import *
 
 class Trader():
     def __init__(self, config):
@@ -250,7 +251,7 @@ class Trader():
                                     trade_activity = 'BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
                                     self.post_activity(trade_activity)
                                 
-                                self.orders[crypto_name] += [order.Order(order_info)]
+                                self.orders[crypto_name] += [Order(order_info)]
 
                                 print("Order info:", order_info)
 
@@ -312,7 +313,7 @@ class Trader():
                                     trade_activity = 'SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
                                     self.post_activity(trade_activity)
                                 
-                                self.orders[crypto_name] += [order.Order(order_info)]
+                                self.orders[crypto_name] += [Order(order_info)]
 
                                 print("Order info:", order_info)
 
