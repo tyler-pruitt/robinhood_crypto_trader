@@ -129,10 +129,10 @@ class Trader():
         
         self.trade = ''
         
-        # self.buy_times = [{datetime: 'status'}]
+        # self.buy_times and self.sell_times look like {'crypto1': {datetime: status, datetime: status}, 'crypto2': {datetime: status, datetime: status}}
         # status possibilities are ['live_buy', 'simulated_buy', 'unable_to_buy', 'live_sell', 'simulated_sell', unable_to_sell']
-        self.buy_times = [dict()] * len(self.crypto)
-        self.sell_times = [dict()] * len(self.crypto)
+        self.buy_times = {crypto_name: {} for crypto_name in self.crypto}
+        self.sell_times = {crypto_name: {} for crypto_name in self.crypto}
 
         if self.plot_portfolio_config:
             self.time_data, self.portfolio_data = [], []
@@ -253,7 +253,7 @@ class Trader():
 
                                 print("Order info:", order_info)
 
-                                self.buy_times[i][dt.datetime.now()] = 'live_buy'
+                                self.buy_times[crypto_name][dt.datetime.now()] = 'live_buy'
                             else:
                                 # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
 
@@ -272,18 +272,18 @@ class Trader():
                                     self.post_activity(trade_activity)
 
                                 if self.mode == 'safelive':
-                                    self.buy_times[i][dt.datetime.now()] = 'simulated_buy'
+                                    self.buy_times[crypto_name][dt.datetime.now()] = 'simulated_buy'
                                 else:
-                                    self.buy_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
+                                    self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
                         else:
                             print('Not enough cash')
 
                             trade = "UNABLE TO BUY (NOT ENOUGH CASH)"
 
                             if self.mode != 'backtest':
-                                self.buy_times[i][dt.datetime.now()] = 'unable_to_buy'
+                                self.buy_times[crypto_name][dt.datetime.now()] = 'unable_to_buy'
                             else:
-                                self.buy_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_buy'
+                                self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_buy'
                     elif trade == 'SELL':
                         if self.holdings[crypto_name] > 0:
                             
@@ -315,7 +315,7 @@ class Trader():
 
                                 print("Order info:", order_info)
 
-                                self.sell_times[i][dt.datetime.now()] = 'live_sell'
+                                self.sell_times[crypto_name][dt.datetime.now()] = 'live_sell'
                             else:
                                 # Simulate selling the crypto by adding to cash and substracting from holdings
                                 self.cash += holdings_to_sell * price
@@ -333,18 +333,18 @@ class Trader():
                                     self.post_activity(trade_activity)
 
                                 if self.mode == 'safelive':
-                                    self.sell_times[i][dt.datetime.now()] = 'simulated_sell'
+                                    self.sell_times[crypto_name][dt.datetime.now()] = 'simulated_sell'
                                 else:
-                                    self.sell_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
+                                    self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
                         else:
                             print("Not enough holdings")
 
                             trade = 'UNABLE TO SELL (NOT ENOUGH HOLDINGS)'
 
                             if self.mode != 'backtest':
-                                self.sell_times[i][dt.datetime.now()] = 'unable_to_sell'
+                                self.sell_times[crypto_name][dt.datetime.now()] = 'unable_to_sell'
                             else:
-                                self.sell_times[i][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
+                                self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
                     
                     self.price_dict[crypto_name] = price
                     
@@ -1241,7 +1241,7 @@ class Trader():
         for i in range(len(price_times)):
             price_times[i] = self.convert_timestamp_to_datetime(price_times[i])
         
-        for time, status in self.buy_times[self.crypto.index(stock)].items():
+        for time, status in self.buy_times[stock].items():
             
             min_abs_distance, min_index = dt.timedelta(days=9999), 0
             
@@ -1254,7 +1254,7 @@ class Trader():
             buy_y += [prices[min_index]]
             buy_color += [status_to_color[status]]
         
-        for time, status in self.sell_times[self.crypto.index(stock)].items():
+        for time, status in self.sell_times[stock].items():
             min_abs_distance, min_index = dt.timedelta(days=9999), 0
             
             for i in range(len(price_times)):
