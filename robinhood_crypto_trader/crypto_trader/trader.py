@@ -397,8 +397,16 @@ class Trader():
         
         except TypeError:
             # Robinhood Internal Error
-            print("Robinhood Internal Error: continuing trading")
+            print("Robinhood Internal Error: TypeError: continuing trading")
 
+            # Continue trading
+            self.run()
+        
+        except KeyError:
+            # Robinhood Internal Error
+            # 503 Service Error: Service Unavailable for url: https://api.robinhood.com/portfolios/
+            print("Robinhood Internal Error: KeyError: continuing trading")
+            
             # Continue trading
             self.run()
         
