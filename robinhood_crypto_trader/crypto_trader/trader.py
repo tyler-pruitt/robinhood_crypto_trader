@@ -1,7 +1,6 @@
 """
 Issues:
 - ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
-- Error catching for Robinhood internal errors
 - Rounding errors for in self.run(), use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
 """
 
