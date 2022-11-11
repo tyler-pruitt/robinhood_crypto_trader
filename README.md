@@ -72,4 +72,4 @@ tr.logout()
 ```
 
 ## Documentation
-Currently in progress
+Currently under development
