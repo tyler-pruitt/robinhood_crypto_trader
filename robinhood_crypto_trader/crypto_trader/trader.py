@@ -13,7 +13,6 @@ import pandas_ta as ta
 import random as r
 import sys
 import robin_stocks.robinhood as rh
-from discord_webhook import DiscordWebhook
 
 from robinhood_crypto_trader.crypto_trader.order import *
 
@@ -239,15 +238,10 @@ class Trader():
                                 if self.buy_order_type == 'limit':
                                     # Limit order by price
                                     order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
-
-                                    trade_activity = 'BUY ${} of {} at limit price ${}'.format(dollars_to_sell, crypto_name, price)
-                                    self.post_activity(trade_activity)
+                                    
                                 else:
                                     # Market order
                                     order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
-
-                                    trade_activity = 'BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
-                                    self.post_activity(trade_activity)
                                 
                                 self.orders[crypto_name] += [Order(order_info)]
 
@@ -266,11 +260,7 @@ class Trader():
                                 self.holdings[crypto_name] += holdings_to_add
 
                                 trade = 'SIMULATION BUY'
-
-                                if self.mode != 'backtest':
-                                    trade_activity = 'Simulated BUY ${} of {} at market price ${}'.format(dollars_to_sell, crypto_name, price)
-                                    self.post_activity(trade_activity)
-
+                                
                                 if self.mode == 'safelive':
                                     self.buy_times[crypto_name][dt.datetime.now()] = 'simulated_buy'
                                 else:
@@ -293,7 +283,7 @@ class Trader():
                                 price = round(float(self.get_latest_price(crypto_name)), 2)
                             
                             holdings_to_sell = self.holdings[crypto_name] * self.holdings_factor
-
+                            
                             print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
 
                             if self.is_live:
@@ -301,15 +291,11 @@ class Trader():
                                 if self.sell_order_type == 'limit':
                                     # Limit order by price for a set quantity
                                     order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
-
-                                    trade_activity = 'SELL {} of {} at limit price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
-                                    self.post_activity(trade_activity)
+                                    
                                 else:
                                     # Market order
                                     order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
-
-                                    trade_activity = 'SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
-                                    self.post_activity(trade_activity)
+                                
                                 
                                 self.orders[crypto_name] += [Order(order_info)]
 
@@ -327,11 +313,7 @@ class Trader():
                                     self.bought_price[crypto_name] = 0
                                 
                                 trade = 'SIMULATION SELL'
-
-                                if self.mode != 'backtest':
-                                    trade_activity = 'Simulated SELL {} of {} at market price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2))
-                                    self.post_activity(trade_activity)
-
+                                
                                 if self.mode == 'safelive':
                                     self.sell_times[crypto_name][dt.datetime.now()] = 'simulated_sell'
                                 else:
@@ -497,13 +479,6 @@ class Trader():
         else:
             # Send the amount in crypto to receive_address
             return
-    
-    def post_activity(self, activity):
-        webhook_url = 'https://discord.com/api/webhooks/1037145330933837885/0lq_nl38i3dksfYV1VAFRMIL8d94z3fn-9q7RIFS_JOPhC2WDcKROUbpKA_eCjPQ_ehG'
-        
-        webhook = DiscordWebhook(url=webhook_url, content=activity)
-        
-        response = webhook.execute()
     
     def get_latest_price(self, crypto_symbol):
         return rh.crypto.get_crypto_quote(crypto_symbol)['mark_price']
