@@ -13,9 +13,9 @@ An unofficial Python package for an automated cryptocurrency trader on the popul
 - Litecoin (LTC) wallet address: `ltc1qvwzqm4jxqt0gjf7fwzxpnvtlssxtc9lutrnxsh`
 - Bitcoin Cash (BCH) wallet address: `bitcoincash:qr4h4edxt5muv2ns3kls0d4ca8lezu8x9v9d4r227h`
 - Tezos (XTZ) wallet address: `tz1Wexc9bv6BxCBgyXwaqmJq1RNYxXBr9aff`
+- Stellar Lumens (XLM): `GB2ES2N326MZK4EGJBKN3ZARCQ5RTFQSAWIJAAKFVIIIJSCC35TXIMLB`, memo (needs to be included): `1592369023`
 
 <!--
-- Stellar Lumens (XLM): `Currently unable to send and receive on Robinhood`
 - Bitcoin SV (BSV): `Currently unable to send and receive on Robinhood`
 -->
 
