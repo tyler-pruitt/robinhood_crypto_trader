@@ -41,6 +41,7 @@ class Trader():
                 'bounds': ''
             },
             'determine_trade_function': 'function_name',
+            'builtin_trade_function_arguments': []
             'cash': 2000,
             'use_cash': False,
             'loss_threshold': 50.00,
@@ -64,6 +65,11 @@ class Trader():
         self.plot_portfolio_config = config['plot_portfolio']
         self.mode = config['mode']
         self.determine_trade_func = config['determine_trade_function']
+        
+        if config.get('builtin_trade_function_arguments', []) != []:
+            self.builtin_trade_function_arguments = config['builtin_trade_function_arguments']
+        else:
+            self.builtin_trade_function_arguments = []
         
         self.login()
 
@@ -666,10 +672,12 @@ class Trader():
         assert config['loss_threshold'] >= 0
 
         assert type(config['loss_percentage']) == float or type(config['loss_percentage']) == int
-
+        
         assert config['loss_percentage'] >= 0
         
         assert type(config['determine_trade_function']) == str
+        
+        assert type(config.get('builtin_trade_function_arguments', [])) == list
 
         assert type(config['cash_factor']) == int or type(config['cash_factor']) == float
         
@@ -776,12 +784,15 @@ class Trader():
             return override
         else:
             if self.get_profit() >= -1 * self.get_loss_threshold():
-                return True
-            elif self.get_percent_change() >= -1 * self.get_loss_percentage():
-                return True
+                if self.get_percent_change() >= -1 * self.get_loss_percentage():
+                    return True
+                else:
+                    print("Loss percentage exceeded " + str(self.get_loss_percentage()) + "%: terminating automated trading")
+                    
+                    return False
             else:
                 print("Loss exceeded $" + str(self.get_loss_threshold()) + ": terminating automated trading")
-    
+                
                 return False
     
     def display_time(self, seconds, granularity=5):
@@ -945,7 +956,7 @@ class Trader():
         else:
             # Need to finish implementation for personalized trading strategies
             trade = 'HOLD'
-            
+            print("Setting trade to default value of 'HOLD'")
             assert trade in ['BUY', 'SELL', 'HOLD']
 
             self.set_trade(trade)
@@ -1059,26 +1070,30 @@ class Trader():
         """
         End Helper Functions
         """
+        if self.builtin_trade_function_arguments == []:
+            rsi_period, rsi_index, rsi_sell_level, rsi_buy_level, macd_fast_period, macd_slow_period, macd_signal_period, macd_index = 14, -16, 70, 30, 12, 26, 9, -34
+        else:
+            rsi_period, rsi_index, rsi_sell_level, rsi_buy_level, macd_fast_period, macd_slow_period, macd_signal_period, macd_index = self.builtin_trade_function_arguments[0], self.builtin_trade_function_arguments[1], self.builtin_trade_function_arguments[2], self.builtin_trade_function_arguments[3], self.builtin_trade_function_arguments[4], self.builtin_trade_function_arguments[5], self.builtin_trade_function_arguments[6], self.builtin_trade_function_arguments[7]
         
         if self.plot_analytics_config:
-            rsi_data = RSI(times, prices, 14)
+            rsi_data = RSI(times, prices, rsi_period)
         else:
-            rsi_data = RSI(times[-16:], prices[-16:], 14)
+            rsi_data = RSI(times[rsi_index:], prices[rsi_index:], rsi_period)
             
             assert len(rsi_data) == 1
         
-        if rsi_data[-1][1] > 70:
+        if rsi_data[-1][1] > rsi_sell_level:
             rsi_indicator = "SELL"
-        elif rsi_data[-1][1] < 30:
+        elif rsi_data[-1][1] < rsi_buy_level:
             rsi_indicator = "BUY"
         else:
             rsi_indicator = "HOLD"
         
         if self.plot_analytics_config:
-            macd, signal = MACD(times, prices, 12, 26, 9)
+            macd, signal = MACD(times, prices, macd_fast_period, macd_slow_period, macd_signal_period)
             macd_signal_difference = []
         else:
-            macd, signal = MACD(times[-34:], prices[-34:], 12, 26, 9)
+            macd, signal = MACD(times[macd_index:], prices[macd_index:], macd_fast_period, macd_slow_period, macd_signal_period)
             macd_signal_difference = []
             
             assert len(signal) == 1
@@ -1120,7 +1135,13 @@ class Trader():
         """
 
         # Helper function
-        def BOLL(times, prices, period=20, std_width=2):
+        def BOLL(times, prices):
+            if self.builtin_trade_function_arguments == []:
+                period = 20
+                std_width = 2
+            else:
+                period = self.builtin_trade_function_arguments[0]
+                std_width = self.builtin_trade_function_arguments[1]
             """
             Bollinger bands (BOLL)
             
@@ -1177,7 +1198,10 @@ class Trader():
         if self.plot_analytics_config:
             boll_data = BOLL(times, prices)
         else:
-            boll_data = BOLL(times[-20:], prices[-20:])
+            if self.builtin_trade_function_arguments == []:
+                boll_data = BOLL(times[-20:], prices[-20:])
+            else:
+                boll_data = BOLL(times[-1*self.builtin_trade_function_arguments[0]:], prices[-1*self.builtin_trade_function_arguments[0]:])
             
             assert len(boll_data) == 1
         
