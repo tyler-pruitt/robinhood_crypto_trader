@@ -156,7 +156,7 @@ class Trader():
     def run(self):
         try:
             print("cryptos: ", self.crypto)
-
+    
             if self.mode == 'backtest':
                 crypto_historicals = self.download_backtest_data()
             
@@ -165,13 +165,13 @@ class Trader():
                     self.iteration_runtime_start = t.time()
                 
                 if self.mode == 'backtest':
-                    if self.backtest_index == len(crypto_historicals[0]):
+                    if self.backtest_index == len(crypto_historicals[self.crypto[0]]):
                         print("backtesting finished")
-
+                        
                         break
-                    elif self.backtest_index > len(crypto_historicals[0]):
+                    elif self.backtest_index > len(crypto_historicals[self.crypto[0]]):
                         print("not enough backtesting data to perform calculations")
-
+                        
                         break
                 
                 prices = []
@@ -180,12 +180,12 @@ class Trader():
                         prices += [self.get_latest_price(crypto_symbol)]
                 else:
                     for i in range(len(self.crypto)):
-                        prices += [crypto_historicals[i][self.backtest_index]['close_price']]
+                        prices += [crypto_historicals[self.crypto[i]][self.backtest_index]['close_price']]
                 
                 if self.use_cash == False or self.is_live:
                     # Update holdings and bought_price
                     self.holdings, self.bought_price = self.get_holdings_and_bought_price()
-
+    
                     # Update cash and equity
                     self.cash, self.equity = self.retrieve_cash_and_equity()
                 else:
@@ -195,32 +195,32 @@ class Trader():
                 # Set the profit and percent change for the trader
                 self.set_profit(self.cash + self.get_crypto_holdings_capital() - self.initial_capital)
                 self.set_percent_change(((self.cash + self.get_crypto_holdings_capital() - self.initial_capital) * 100) / self.initial_capital)
-
+    
                 # Update console
                 self.update_output()
-
+    
                 if self.plot_portfolio_config:
                     self.time_data += [self.get_runtime()]
                     self.portfolio_data += [self.cash + self.get_crypto_holdings_capital()]
-
+    
                     self.plot_portfolio()
                 
                 for i, crypto_name in enumerate(self.crypto):
                     price = float(prices[i])
                     
                     print('\n{} = ${}'.format(crypto_name, price))
-
+    
                     if self.mode != 'backtest':
                         trade = self.determine_trade(crypto_name)
                     else:
                         trade = self.determine_trade(crypto_name, crypto_historicals)
                     
                     print('trade:', trade, end='\n\n')
-
+    
                     # Update cash for buy or sell calculations
                     if self.use_cash == False or self.is_live:
                         self.cash, self.equity = self.retrieve_cash_and_equity()
-
+    
                     if trade == 'BUY':
                         if self.mode != 'backtest':
                             price = round(float(self.get_latest_price(crypto_name)), 2)
@@ -228,13 +228,13 @@ class Trader():
                         if self.cash > 0:
                             
                             # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
-
+    
                             dollars_to_sell = self.cash * self.cash_factor
-
+    
                             print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_sell, crypto_name, price))
-
+    
                             if self.is_live:
-
+    
                                 if self.buy_order_type == 'limit':
                                     # Limit order by price
                                     order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
@@ -244,21 +244,21 @@ class Trader():
                                     order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
                                 
                                 self.orders[crypto_name] += [Order(order_info)]
-
+    
                                 print("Order info:", order_info)
-
+    
                                 self.buy_times[crypto_name][dt.datetime.now()] = 'live_buy'
                             else:
                                 # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
-
+    
                                 self.cash -= dollars_to_sell
-
+    
                                 holdings_to_add = dollars_to_sell / price
-
+    
                                 self.bought_price[crypto_name] = ((self.bought_price[crypto_name] * self.holdings[crypto_name]) + (holdings_to_add * price)) / (self.holdings[crypto_name] + holdings_to_add)
-
+    
                                 self.holdings[crypto_name] += holdings_to_add
-
+    
                                 trade = 'SIMULATION BUY'
                                 
                                 if self.mode == 'safelive':
@@ -267,9 +267,9 @@ class Trader():
                                     self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
                         else:
                             print('Not enough cash')
-
+    
                             trade = "UNABLE TO BUY (NOT ENOUGH CASH)"
-
+    
                             if self.mode != 'backtest':
                                 self.buy_times[crypto_name][dt.datetime.now()] = 'unable_to_buy'
                             else:
@@ -278,16 +278,16 @@ class Trader():
                         if self.holdings[crypto_name] > 0:
                             
                             # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
-
+    
                             if self.mode != 'backtest':
                                 price = round(float(self.get_latest_price(crypto_name)), 2)
                             
                             holdings_to_sell = self.holdings[crypto_name] * self.holdings_factor
                             
                             print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
-
+    
                             if self.is_live:
-
+    
                                 if self.sell_order_type == 'limit':
                                     # Limit order by price for a set quantity
                                     order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
@@ -298,16 +298,16 @@ class Trader():
                                 
                                 
                                 self.orders[crypto_name] += [Order(order_info)]
-
+    
                                 print("Order info:", order_info)
-
+    
                                 self.sell_times[crypto_name][dt.datetime.now()] = 'live_sell'
                             else:
                                 # Simulate selling the crypto by adding to cash and substracting from holdings
                                 self.cash += holdings_to_sell * price
-
+    
                                 self.holdings[crypto_name] -= holdings_to_sell
-
+    
                                 # Average bought price is unaffected when selling
                                 if self.holdings[crypto_name] == 0:
                                     self.bought_price[crypto_name] = 0
@@ -320,9 +320,9 @@ class Trader():
                                     self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
                         else:
                             print("Not enough holdings")
-
+    
                             trade = 'UNABLE TO SELL (NOT ENOUGH HOLDINGS)'
-
+    
                             if self.mode != 'backtest':
                                 self.sell_times[crypto_name][dt.datetime.now()] = 'unable_to_sell'
                             else:
@@ -333,32 +333,32 @@ class Trader():
                     self.trade_dict[crypto_name] = trade
                 
                 self.df_trades, self.df_prices = self.build_dataframes()
-
+    
                 print('\ndf_prices \n', self.df_prices, end='\n\n')
                 print('df_trades \n', self.df_trades, end='\n\n')
-
+    
                 if self.mode != 'backtest':
                     self.iteration_runtime_end = t.time()
-
+    
                     if self.average_iteration_runtime == 0:
-
+    
                         self.average_iteration_runtime = self.iteration_runtime_end - self.iteration_runtime_start
                     else:
                         # Update average iteration runtime
                         self.average_iteration_runtime *= self.iteration_number
-
+    
                         self.average_iteration_runtime += (self.iteration_runtime_end - self.iteration_runtime_start)
-
+    
                         self.average_iteration_runtime /= (self.iteration_number + 1)
                     
                     wait_time = self.convert_time_to_sec(self.get_interval()) - self.average_iteration_runtime
-
+    
                     if wait_time < 0:
                         wait_time = 0
                     
                     if wait_time > 0:
                         print('Waiting ' + str(round(wait_time, 2)) + ' seconds...')
-
+    
                         t.sleep(wait_time)
                 else:
                     self.backtest_index += 1
@@ -402,7 +402,7 @@ class Trader():
             self.logout()
             
             print("Error message:", sys.exc_info())
-        
+    
     def generate_id(self):
         letters_and_numbers = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
         id = ''
@@ -626,11 +626,11 @@ class Trader():
         """
         Assumes that self.mode is 'backtest'
         """
-        crypto_historical_data = []
+        crypto_historical_data = {}
         
         for i in range(len(self.crypto)):
             
-            crypto_historical_data += [rh.crypto.get_crypto_historicals(symbol=self.crypto[i], interval=self.backtest_interval, span=self.backtest_span, bounds=self.backtest_bounds)]
+            crypto_historical_data[self.crypto[i]] = rh.crypto.get_crypto_historicals(symbol=self.crypto[i], interval=self.backtest_interval, span=self.backtest_span, bounds=self.backtest_bounds)
         
         print("downloading backtesting data finished")
         
@@ -926,10 +926,10 @@ class Trader():
             # Set times and prices given stock_historicals
             times, prices = [], []
             
-            for k in range(len(crypto_historicals)):
-                times += [crypto_historicals[k]['begins_at']]
+            for k in range(len(crypto_historicals[crypto_symbol])):
+                times += [crypto_historicals[crypto_symbol][k]['begins_at']]
                 
-                prices += [float(crypto_historicals[k]['close_price'])]
+                prices += [float(crypto_historicals[crypto_symbol][k]['close_price'])]
         else:
             df_historical_prices = self.get_historical_prices(crypto_symbol)
             
