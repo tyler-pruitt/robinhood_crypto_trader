@@ -54,6 +54,7 @@ config = {
         'bounds': '24_7'
     },
     'determine_trade_function': 'boll',
+    'builtin_trade_function_arguments': [],
     'cash': 2000,
     'use_cash': True,
     'loss_threshold': 50.00,
