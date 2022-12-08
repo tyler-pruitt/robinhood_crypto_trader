@@ -407,13 +407,10 @@ class Trader():
         letters_and_numbers = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
         id = ''
         
-        # id = '####-####-####'
+        # id = '############'
         for i in range(3):
             for j in range(4):
                 id += letters_and_numbers[r.randint(0, len(letters_and_numbers)-1)]
-            
-            if i != 2:
-                id += '-'
         
         return id
     
@@ -533,7 +530,7 @@ class Trader():
         if self.mode != 'backtest':
             print("======================ITERATION " + str(self.iteration_number) + "======================")
         else:
-            print("======================ITERATION " + str(self.iteration_number) + '/' + str(self.total_iteration_num) + "======================")
+            print("======================ITERATION " + str(self.iteration_number) + '/' + str(self.total_iteration_number) + "======================")
         
         print("mode: " + self.mode)
         print("runtime: " + self.display_time(self.get_runtime()))
