@@ -1,7 +1,7 @@
 """
 Version 1.0.8 Preproduction
 
-Last updated: Tyler Pruitt at 01:10 AM (PST) on January 7, 2023
+Last updated: Tyler Pruitt at 11:13 AM (PST) on January 7, 2023
 
 Issues:
 - [Solution implemented, need to test] ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
@@ -161,7 +161,7 @@ class Trader():
         self.iteration_number = 1
 
         if self.mode != 'backtest':
-            self.average_iteration_runtime = 0
+            self.average_iteration_runtime = 0.00
         
         self.cash_factor = config['cash_factor']
         self.holdings_factor = config['holdings_factor']
@@ -440,16 +440,28 @@ class Trader():
         
         return id
     
-    def get_precision(self, text, marker='1'):
+    def get_precision(self, text):
         """
         Returns the number of decimal places the number has
         
-        Error: output is -2 (marker not found)
+        text needs to contain one and only one '1' and one and only one '.'
         
-        E.g. text = '0.001000000000000000'
-        output = 3
+        E.g. text: output
+        '100.000000000000': -2
+        '10.0000000000000': -1
+        '1.00000000000000': 0
+        '0.10000000000000': 1
+        '0.01000000000000': 2
+        '0.00100000000000': 3
+        '0.00010000000000': 4
         """
-        return text.find(marker) - 1
+        one = text.find('1')
+        dot = text.find('.')
+        
+        if one < dot:
+            return one - dot + 1
+        else:
+            return one - dot
     
     def round_down_to_2(self, value):
         """
