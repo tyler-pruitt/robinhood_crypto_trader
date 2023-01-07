@@ -1,7 +1,7 @@
 """
 Issues:
-- ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
-- Rounding errors for in self.run(), use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
+- [Solution implemented, need to test] ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
+- [Solution implemented, need to test] Rounding errors for in self.run(), use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
 """
 
 import numpy as np
@@ -13,6 +13,7 @@ import pandas_ta as ta
 import random as r
 import sys
 import robin_stocks.robinhood as rh
+import math
 
 from robinhood_crypto_trader.crypto_trader.order import *
 
@@ -72,6 +73,8 @@ class Trader():
             self.builtin_trade_function_arguments = []
         
         self.login()
+        
+        self.crypto_meta_data = {crypto_name: rh.crypto.get_crypto_info(crypto_name) for crypto_name in self.crypto}
 
         # self.buy_order_type and self.sell_order_type are only used when self.mode == 'live'
         self.buy_order_type = config['buy_order_type']
@@ -122,15 +125,15 @@ class Trader():
         if self.use_cash == False or self.is_live:
             self.initial_capital = self.get_crypto_holdings_capital() + self.cash
         else:
-            self.initial_capital = config['cash']
-            self.cash = config['cash']
+            self.initial_capital = round(config['cash'], 2)
+            self.cash = round(config['cash'], 2)
         
         assert self.initial_capital > 0
         
         self.start_time = t.time()
         
-        self.profit = 0.0
-        self.percent_change = 0.0
+        self.profit = 0.00
+        self.percent_change = 0.00
         
         self.trade = ''
         
@@ -184,12 +187,13 @@ class Trader():
                         break
                 
                 prices = []
+                
                 if self.mode != 'backtest':
                     for crypto_symbol in self.crypto:
-                        prices += [self.get_latest_price(crypto_symbol)]
+                        prices += [round(float(self.get_latest_price(crypto_symbol)), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))]
                 else:
                     for i in range(len(self.crypto)):
-                        prices += [crypto_historicals[self.crypto[i]][self.backtest_index]['close_price']]
+                        prices += [round(float(crypto_historicals[self.crypto[i]][self.backtest_index]['close_price']), self.get_precision(self.crypto_meta_data[self.crypto[i]]['min_order_price_increment']))]
                 
                 if self.use_cash == False or self.is_live:
                     # Update holdings and bought_price
@@ -215,7 +219,7 @@ class Trader():
                     self.plot_portfolio()
                 
                 for i, crypto_name in enumerate(self.crypto):
-                    price = float(prices[i])
+                    price = prices[i]
                     
                     print('\n{} = ${}'.format(crypto_name, price))
     
@@ -232,25 +236,25 @@ class Trader():
     
                     if trade == 'BUY':
                         if self.mode != 'backtest':
-                            price = round(float(self.get_latest_price(crypto_name)), 2)
+                            price = round(float(self.get_latest_price(crypto_name)), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
                         
                         if self.cash > 0:
                             
                             # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
     
-                            dollars_to_sell = self.cash * self.cash_factor
+                            dollars_to_spend = self.round_down_to_2(self.cash * self.cash_factor)
     
-                            print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_sell, crypto_name, price))
+                            print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_spend, crypto_name, price))
     
                             if self.is_live:
-    
+                                
                                 if self.buy_order_type == 'limit':
                                     # Limit order by price
-                                    order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
+                                    order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_spend, limitPrice=price, timeInForce='gtc', jsonify=True)
                                     
                                 else:
                                     # Market order
-                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_sell, timeInForce='gtc', jsonify=True)
+                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_spend, timeInForce='gtc', jsonify=True)
                                 
                                 self.orders[crypto_name] += [Order(order_info)]
     
@@ -260,14 +264,14 @@ class Trader():
                             else:
                                 # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
     
-                                self.cash -= dollars_to_sell
+                                self.cash -= dollars_to_spend
+                                
+                                holdings_to_add = round(dollars_to_spend / price, self.get_precision(self.crypto_meta_data[crypto_name]['min_order_quantity_increment']))
     
-                                holdings_to_add = dollars_to_sell / price
-    
-                                self.bought_price[crypto_name] = ((self.bought_price[crypto_name] * self.holdings[crypto_name]) + (holdings_to_add * price)) / (self.holdings[crypto_name] + holdings_to_add)
-    
+                                self.bought_price[crypto_name] = round( ((self.bought_price[crypto_name] * self.holdings[crypto_name]) + (holdings_to_add * price)) / (self.holdings[crypto_name] + holdings_to_add), self.get_precision(self.crypto_meta_data[crypto_name]['min_order_price_increment']))
+                                
                                 self.holdings[crypto_name] += holdings_to_add
-    
+                                
                                 trade = 'SIMULATION BUY'
                                 
                                 if self.mode == 'safelive':
@@ -289,12 +293,12 @@ class Trader():
                             # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
     
                             if self.mode != 'backtest':
-                                price = round(float(self.get_latest_price(crypto_name)), 2)
+                                price = round(float(self.get_latest_price(crypto_name)), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
                             
-                            holdings_to_sell = self.holdings[crypto_name] * self.holdings_factor
+                            holdings_to_sell = round(self.holdings[crypto_name] * self.holdings_factor, self.get_precision(self.crypto_meta_data['min_order_quantity_increment']))
                             
                             print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
-    
+                            
                             if self.is_live:
     
                                 if self.sell_order_type == 'limit':
@@ -313,7 +317,7 @@ class Trader():
                                 self.sell_times[crypto_name][dt.datetime.now()] = 'live_sell'
                             else:
                                 # Simulate selling the crypto by adding to cash and substracting from holdings
-                                self.cash += holdings_to_sell * price
+                                self.cash += round(holdings_to_sell * price, 2)
     
                                 self.holdings[crypto_name] -= holdings_to_sell
     
@@ -413,7 +417,7 @@ class Trader():
             print("Error message:", sys.exc_info())
     
     def generate_id(self):
-        letters_and_numbers = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        letters_and_numbers = 'abcdefghijklmnopqrstuvwxyz0123456789'
         id = ''
         
         # id = '############'
@@ -422,6 +426,27 @@ class Trader():
                 id += letters_and_numbers[r.randint(0, len(letters_and_numbers)-1)]
         
         return id
+    
+    def get_precision(self, text, marker='1'):
+        """
+        Returns the number of decimal places the number has
+        
+        Error: output is -2 (marker not found)
+        
+        E.g. text = '0.001000000000000000'
+        output = 3
+        """
+        return text.find(marker) - 1
+    
+    def round_down_to_2(self, value):
+        """
+        Converts a float to two decimal places and rounds down
+        
+        E.g.
+        26.537 -> 26.53
+        26.531 -> 26.53
+        """
+        return math.floor(value * 100)/100.0
     
     def login(self):
         time_logged_in = 60 * 60 * 24 * self.days_to_run
@@ -446,8 +471,8 @@ class Trader():
     def retrieve_cash_and_equity(self):
         rh_cash = rh.account.build_user_profile()
         
-        cash = float(rh_cash['cash'])
-        equity = float(rh_cash['equity'])
+        cash = round(float(rh_cash['cash']), 2)
+        equity = round(float(rh_cash['equity']), 2)
         
         return cash, equity
     
@@ -487,15 +512,21 @@ class Trader():
             return
     
     def get_latest_price(self, crypto_symbol):
+        """
+        Returns a string of the latest market price of the cryptocurrency
+        """
         return rh.crypto.get_crypto_quote(crypto_symbol)['mark_price']
     
     def get_crypto_holdings_capital(self):
-        capital = 0.0
+        """
+        Returns the dollar value of crypto assets
+        """
+        capital = 0.00
             
         for crypto_name, crypto_amount in self.holdings.items():
             capital += crypto_amount * float(self.get_latest_price(crypto_name))
         
-        return capital
+        return round(capital, 2)
     
     def convert_time_to_sec(self, time_str):
         """
@@ -612,8 +643,9 @@ class Trader():
 
         for crypto_symbol in self.crypto:
             try:
-                holdings[crypto_symbol] = float(rh_holdings[crypto_symbol]['quantity'])
-                bought_price[crypto_symbol] = float(rh_holdings[crypto_symbol]['average_buy_price'])
+                holdings[crypto_symbol] = round(float(rh_holdings[crypto_symbol]['quantity']), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_quantity_increment']))
+                
+                bought_price[crypto_symbol] = round( float(rh_holdings[crypto_symbol]['average_buy_price']), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
             except:
                 holdings[crypto_symbol] = 0
                 bought_price[crypto_symbol] = 0
