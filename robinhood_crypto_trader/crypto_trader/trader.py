@@ -1,7 +1,7 @@
 """
 Version 1.0.8 Preproduction
 
-Last updated: Tyler Pruitt at 12:46 AM (PST) on January 7, 2023
+Last updated: Tyler Pruitt at 01:10 AM (PST) on January 7, 2023
 
 Issues:
 - [Solution implemented, need to test] ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
@@ -13,7 +13,8 @@ Issues:
 To-do:
 - Implement the Strategy class from strategy.py so that users can bring in their own independent strategies to decide whether to buy, sell, or hold their cryptocurrency assets.
 - Only have self.buy_times and self.sell_times by initialized and used if config[plot_crypto] is True
-- Documentation
+- Documentation of code
+- Documentation for user guide
 """
 
 import numpy as np
