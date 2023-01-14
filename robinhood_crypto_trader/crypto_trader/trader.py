@@ -1,7 +1,7 @@
 """
 Version 1.0.8 Preproduction
 
-Last updated: Tyler Pruitt at 11:13 AM (PST) on January 7, 2023
+Last updated: Tyler Pruitt at 08:17 PM (PST) on January 13, 2023
 
 Issues:
 - [Solution implemented, need to test] ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
@@ -434,9 +434,8 @@ class Trader():
         id = ''
         
         # id = '############'
-        for i in range(3):
-            for j in range(4):
-                id += letters_and_numbers[r.randint(0, len(letters_and_numbers)-1)]
+        for i in range(12):
+            id += letters_and_numbers[r.randint(0, len(letters_and_numbers)-1)]
         
         return id
     
