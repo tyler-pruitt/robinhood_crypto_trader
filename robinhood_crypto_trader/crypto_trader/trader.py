@@ -1,7 +1,7 @@
 """
 Version 1.0.8 Preproduction
 
-Last updated: Tyler Pruitt at 08:17 PM (PST) on January 13, 2023
+Last updated: Tyler Pruitt at 04:37 PM (PST) on January 17, 2023
 
 Issues:
 - [Solution implemented, need to test] ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
