@@ -1,7 +1,7 @@
 """
 Version 1.0.8 Preproduction
 
-Last updated: Tyler Pruitt at 09:35 PM (PST) on January 17, 2023
+Last updated: Tyler Pruitt at 09:41 PM (PST) on January 17, 2023
 
 Issues:
 - Implement buy by quantity orders with thresholds in place to prevent orders from failing [thresholds found at rh.crypto.get_crypto_info(crypto_symbol)]
@@ -683,7 +683,7 @@ class Trader():
 
         for crypto, amount in self.holdings.items():
             
-            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(round(self.get_latest_price(crypto), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))) + '\n'
+            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(round(self.get_latest_price(crypto), self.get_precision(self.crypto_meta_data[crypto]['min_order_price_increment']))) + '\n'
         
         text = text[:-2]
         
