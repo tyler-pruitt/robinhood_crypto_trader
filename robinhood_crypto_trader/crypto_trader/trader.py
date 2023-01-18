@@ -53,7 +53,7 @@ class Trader():
                 'bounds': ''
             },
             'determine_trade_function': 'function_name',
-            'builtin_trade_function_arguments': []
+            'builtin_trade_function_arguments': [],
             'cash': 2000,
             'use_cash': False,
             'loss_threshold': 50.00,
