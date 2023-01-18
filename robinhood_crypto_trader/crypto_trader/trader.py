@@ -465,12 +465,16 @@ class Trader():
     def round_down_to_2(self, value):
         """
         Converts a float to two decimal places and rounds down
-        
+
         E.g.
         26.537 -> 26.53
         26.531 -> 26.53
+        -26.539 -> -26.53
         """
-        return math.floor(value * 100)/100.0
+        if value < 0:
+            return math.ceil(value * 100)/100.0
+        else:
+            return math.floor(value * 100)/100.0
     
     def login(self):
         time_logged_in = 60 * 60 * 24 * self.days_to_run
