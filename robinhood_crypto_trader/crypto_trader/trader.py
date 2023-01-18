@@ -685,7 +685,7 @@ class Trader():
 
         for crypto, amount in self.holdings.items():
             
-            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(self.get_latest_price(crypto)) + '\n'
+            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(round(self.get_latest_price(crypto), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))) + '\n'
         
         text = text[:-2]
         
