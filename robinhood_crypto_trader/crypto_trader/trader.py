@@ -1,11 +1,9 @@
 """
 Version 1.0.8 Preproduction
 
-Last updated: Tyler Pruitt at 04:37 PM (PST) on January 17, 2023
+Last updated: Tyler Pruitt at 09:35 PM (PST) on January 17, 2023
 
 Issues:
-- [Solution implemented, need to test] ZeroDivisionError encountered while trading SHIB (Shiba Inu) (maybe due to very low price) in safelive mode, use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
-- [Solution implemented, need to test] Rounding errors for in self.run(), use rh.crypto.get_crypto_info(crypto_symbol) to help with precision
 - Implement buy by quantity orders with thresholds in place to prevent orders from failing [thresholds found at rh.crypto.get_crypto_info(crypto_symbol)]
 - Implement miniumum values for dollars_to_spend in self.run() so that small buy orders do not fail [thresholds found at rh.crypto.get_crypto_info(crypto_symbol)]
 - Implement sell by price orders with thresholds in place to prevent orders from failing if applicable [thresholds found at rh.crypto.get_crypto_info(crypto_symbol)]
