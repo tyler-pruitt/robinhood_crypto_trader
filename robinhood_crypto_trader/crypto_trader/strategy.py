@@ -3,12 +3,9 @@
 
 import robin_stocks.robinhood as rh
 
-def trade1(crypto_historicals, arguments=[]):
-    return 'BUY'
-
 class Strategy():
-    def __init__(self, func, arguments=[]):
-        self.function = func
+    def __init__(self, function, arguments=[]):
+        self.function = function
         self.arguments = arguments
     
     def execute(self):
@@ -19,7 +16,3 @@ class Strategy():
         assert trade in ['BUY', 'SELL', 'HOLD']
         
         return trade
-
-strat1 = Strategy('trade1')
-
-decision = strat1.execute()
