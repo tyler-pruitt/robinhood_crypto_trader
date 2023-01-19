@@ -1,7 +1,7 @@
 """
 Version 1.0.8 Preproduction
 
-Last updated: Tyler Pruitt at 10:00 PM (PST) on January 17, 2023
+Last updated: Tyler Pruitt at 09:57 PM (PST) on January 18, 2023
 
 Issues:
 - Implement buy by quantity orders with thresholds in place to prevent orders from failing [thresholds found at rh.crypto.get_crypto_info(crypto_symbol)]
@@ -13,8 +13,8 @@ To-do:
 - [Implemented, testing required] Only have self.buy_times and self.sell_times by initialized and used if config[plot_crypto] is True
 - Documentation of code
 - Documentation for user guide
-- Add option to only sell if the price of the cryptocurrency is greater than the average holdings price for that cryptocurrency
-- Add option to only buy if the price of the cryptocurrency is less than the average holings price for that cryptocurrency
+- [Implemented, testing required] Add option to only sell if the price of the cryptocurrency is greater than the average holdings price for that cryptocurrency
+- [Implemented, testing required] Add option to only buy if the price of the cryptocurrency is less than the average holings price for that cryptocurrency
 """
 
 import numpy as np
@@ -63,7 +63,9 @@ class Trader():
             'holdings_factor': 0.20,
             'cash_factor': 0.20,
             'buy_order_type': 'market',
-            'sell_order_type': 'market'
+            'sell_order_type': 'market',
+            'only_sell_above_average_bought_price': False,
+            'only_buy_below_average_bought_price': False
         }
         """
         self.check_config(config)
@@ -79,6 +81,8 @@ class Trader():
         self.plot_portfolio_config = config['plot_portfolio']
         self.mode = config['mode']
         self.determine_trade_func = config['determine_trade_function']
+        self.only_sell_above_bought = config['only_sell_above_average_bought_price']
+        self.only_buy_below_bought = config['only_buy_below_average_bought_price']
         
         if config.get('builtin_trade_function_arguments', []) != []:
             self.builtin_trade_function_arguments = config['builtin_trade_function_arguments']
@@ -254,46 +258,62 @@ class Trader():
                         
                         if self.cash > 0:
                             
-                            # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
-    
-                            dollars_to_spend = self.round_down_to_2(self.cash * self.cash_factor)
-    
-                            print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_spend, crypto_name, price))
-    
-                            if self.is_live:
-                                
-                                if self.buy_order_type == 'limit':
-                                    # Limit order by price
-                                    order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_spend, limitPrice=price, timeInForce='gtc', jsonify=True)
-                                    
-                                else:
-                                    # Market order
-                                    order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_spend, timeInForce='gtc', jsonify=True)
-                                
-                                self.orders[crypto_name] += [Order(order_info)]
-    
-                                print("Order info:", order_info)
-                                
-                                if self.plot_crypto_config:
-                                    self.buy_times[crypto_name][dt.datetime.now()] = 'live_buy'
-                            else:
-                                # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
-    
-                                self.cash -= dollars_to_spend
-                                
-                                holdings_to_add = round(dollars_to_spend / price, self.get_precision(self.crypto_meta_data[crypto_name]['min_order_quantity_increment']))
-    
-                                self.bought_price[crypto_name] = round( ((self.bought_price[crypto_name] * self.holdings[crypto_name]) + (holdings_to_add * price)) / (self.holdings[crypto_name] + holdings_to_add), self.get_precision(self.crypto_meta_data[crypto_name]['min_order_price_increment']))
-                                
-                                self.holdings[crypto_name] += holdings_to_add
-                                
-                                trade = 'SIMULATION BUY'
-                                
-                                if self.plot_crypto_config:
-                                    if self.mode == 'safelive':
-                                        self.buy_times[crypto_name][dt.datetime.now()] = 'simulated_buy'
+                            restricted_buy = False
+                            
+                            if self.only_buy_below_bought:
+                                if self.bought_price[crypto_name] <= price:
+                                    print('Price is not lower than average bought price')
+                                    restricted_buy = True
+                            
+                            if not restricted_buy:
+                                # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
+
+                                dollars_to_spend = self.round_down_to_2(self.cash * self.cash_factor)
+
+                                print('Attempting to BUY ${} of {} at price ${}'.format(dollars_to_spend, crypto_name, price))
+
+                                if self.is_live:
+
+                                    if self.buy_order_type == 'limit':
+                                        # Limit order by price
+                                        order_info = rh.orders.order_buy_crypto_limit_by_price(symbol=crypto_name, amountInDollars=dollars_to_spend, limitPrice=price, timeInForce='gtc', jsonify=True)
+
                                     else:
-                                        self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
+                                        # Market order
+                                        order_info = rh.orders.order_buy_crypto_by_price(symbol=crypto_name, amountInDollars=dollars_to_spend, timeInForce='gtc', jsonify=True)
+
+                                    self.orders[crypto_name] += [Order(order_info)]
+
+                                    print("Order info:", order_info)
+
+                                    if self.plot_crypto_config:
+                                        self.buy_times[crypto_name][dt.datetime.now()] = 'live_buy'
+                                else:
+                                    # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
+
+                                    self.cash -= dollars_to_spend
+
+                                    holdings_to_add = round(dollars_to_spend / price, self.get_precision(self.crypto_meta_data[crypto_name]['min_order_quantity_increment']))
+
+                                    self.bought_price[crypto_name] = round( ((self.bought_price[crypto_name] * self.holdings[crypto_name]) + (holdings_to_add * price)) / (self.holdings[crypto_name] + holdings_to_add), self.get_precision(self.crypto_meta_data[crypto_name]['min_order_price_increment']))
+
+                                    self.holdings[crypto_name] += holdings_to_add
+
+                                    trade = 'SIMULATION BUY'
+
+                                    if self.plot_crypto_config:
+                                        if self.mode == 'safelive':
+                                            self.buy_times[crypto_name][dt.datetime.now()] = 'simulated_buy'
+                                        else:
+                                            self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
+                            else:
+                                trade = "UNABLE TO BUY (BOUGHT PRICE)"
+
+                                if self.plot_crypto_config:
+                                    if self.mode != 'backtest':
+                                        self.buy_times[crypto_name][dt.datetime.now()] = 'unable_to_buy'
+                                    else:
+                                        self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_buy'
                         else:
                             print('Not enough cash')
     
@@ -312,43 +332,61 @@ class Trader():
                             if self.mode != 'backtest':
                                 price = round(float(self.get_latest_price(crypto_name)), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
                             
-                            holdings_to_sell = round(self.holdings[crypto_name] * self.holdings_factor, self.get_precision(self.crypto_meta_data['min_order_quantity_increment']))
                             
-                            print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
                             
-                            if self.is_live:
-    
-                                if self.sell_order_type == 'limit':
-                                    # Limit order by price for a set quantity
-                                    order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
-                                    
-                                else:
-                                    # Market order
-                                    order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
-                                
-                                
-                                self.orders[crypto_name] += [Order(order_info)]
-    
-                                print("Order info:", order_info)
-                                
-                                if self.plot_crypto_config:
-                                    self.sell_times[crypto_name][dt.datetime.now()] = 'live_sell'
-                            else:
-                                # Simulate selling the crypto by adding to cash and substracting from holdings
-                                self.cash += round(holdings_to_sell * price, 2)
-    
-                                self.holdings[crypto_name] -= holdings_to_sell
-    
-                                # Average bought price is unaffected when selling
-                                if self.holdings[crypto_name] == 0:
-                                    self.bought_price[crypto_name] = 0
-                                
-                                trade = 'SIMULATION SELL'
-                                if self.plot_crypto_config:
-                                    if self.mode == 'safelive':
-                                        self.sell_times[crypto_name][dt.datetime.now()] = 'simulated_sell'
+                            restricted_sell = False
+                            
+                            if self.only_sell_above_bought:
+                                if self.bought_price[crypto_name] >= price:
+                                    print('Price is not higher than average bought price')
+                                    restricted_sell = True
+                            
+                            if not restricted_sell:
+                                holdings_to_sell = round(self.holdings[crypto_name] * self.holdings_factor, self.get_precision(self.crypto_meta_data['min_order_quantity_increment']))
+
+                                print('Attempting to SELL {} of {} at price ${} for ${}'.format(holdings_to_sell, crypto_name, price, round(holdings_to_sell * price, 2)))
+
+                                if self.is_live:
+
+                                    if self.sell_order_type == 'limit':
+                                        # Limit order by price for a set quantity
+                                        order_info = rh.orders.order_sell_crypto_limit(symbol=crypto_name, quantity=holdings_to_sell, limitPrice=price, timeInForce='gtc', jsonify=True)
+
                                     else:
-                                        self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
+                                        # Market order
+                                        order_info = rh.orders.order_sell_crypto_by_quantity(symbol=crypto_name, quantity=holdings_to_sell, timeInForce='gtc', jsonify=True)
+
+
+                                    self.orders[crypto_name] += [Order(order_info)]
+
+                                    print("Order info:", order_info)
+
+                                    if self.plot_crypto_config:
+                                        self.sell_times[crypto_name][dt.datetime.now()] = 'live_sell'
+                                else:
+                                    # Simulate selling the crypto by adding to cash and substracting from holdings
+                                    self.cash += round(holdings_to_sell * price, 2)
+
+                                    self.holdings[crypto_name] -= holdings_to_sell
+
+                                    # Average bought price is unaffected when selling
+                                    if self.holdings[crypto_name] == 0:
+                                        self.bought_price[crypto_name] = 0
+
+                                    trade = 'SIMULATION SELL'
+                                    if self.plot_crypto_config:
+                                        if self.mode == 'safelive':
+                                            self.sell_times[crypto_name][dt.datetime.now()] = 'simulated_sell'
+                                        else:
+                                            self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
+                            else:
+                                trade = 'UNABLE TO SELL (BOUGHT PRICE)'
+
+                                if self.plot_crypto_config:
+                                    if self.mode != 'backtest':
+                                        self.sell_times[crypto_name][dt.datetime.now()] = 'unable_to_sell'
+                                    else:
+                                        self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
                         else:
                             print("Not enough holdings")
     
@@ -773,6 +811,10 @@ class Trader():
         assert config['loss_percentage'] >= 0
         
         assert type(config['determine_trade_function']) == str
+        
+        assert type(config['only_buy_below_average_bought_price']) == bool
+        
+        assert type(config['only_sell_above_average_bought_price']) == bool
         
         assert type(config.get('builtin_trade_function_arguments', [])) == list
 
