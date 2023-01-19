@@ -10,9 +10,11 @@ Issues:
 
 To-do:
 - Implement the Strategy class from strategy.py so that users can bring in their own independent strategies to decide whether to buy, sell, or hold their cryptocurrency assets.
-- Only have self.buy_times and self.sell_times by initialized and used if config[plot_crypto] is True
+- [Implemented, testing required] Only have self.buy_times and self.sell_times by initialized and used if config[plot_crypto] is True
 - Documentation of code
 - Documentation for user guide
+- Add option to only sell if the price of the cryptocurrency is greater than the average holdings price for that cryptocurrency
+- Add option to only buy if the price of the cryptocurrency is less than the average holings price for that cryptocurrency
 """
 
 import numpy as np
@@ -148,10 +150,11 @@ class Trader():
         
         self.trade = ''
         
-        # self.buy_times and self.sell_times look like {'crypto1': {datetime: status, datetime: status}, 'crypto2': {datetime: status, datetime: status}}
-        # status possibilities are ['live_buy', 'simulated_buy', 'unable_to_buy', 'live_sell', 'simulated_sell', unable_to_sell']
-        self.buy_times = {crypto_name: {} for crypto_name in self.crypto}
-        self.sell_times = {crypto_name: {} for crypto_name in self.crypto}
+        if self.plot_crypto_config:
+            # self.buy_times and self.sell_times look like {'crypto1': {datetime: status, datetime: status}, 'crypto2': {datetime: status, datetime: status}}
+            # status possibilities are ['live_buy', 'simulated_buy', 'unable_to_buy', 'live_sell', 'simulated_sell', unable_to_sell']
+            self.buy_times = {crypto_name: {} for crypto_name in self.crypto}
+            self.sell_times = {crypto_name: {} for crypto_name in self.crypto}
 
         if self.plot_portfolio_config:
             self.time_data, self.portfolio_data = [], []
@@ -270,8 +273,9 @@ class Trader():
                                 self.orders[crypto_name] += [Order(order_info)]
     
                                 print("Order info:", order_info)
-    
-                                self.buy_times[crypto_name][dt.datetime.now()] = 'live_buy'
+                                
+                                if self.plot_crypto_config:
+                                    self.buy_times[crypto_name][dt.datetime.now()] = 'live_buy'
                             else:
                                 # Simulate buying the crypto by subtracting from cash, adding to holdings, and adjusting average bought price
     
@@ -285,19 +289,21 @@ class Trader():
                                 
                                 trade = 'SIMULATION BUY'
                                 
-                                if self.mode == 'safelive':
-                                    self.buy_times[crypto_name][dt.datetime.now()] = 'simulated_buy'
-                                else:
-                                    self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
+                                if self.plot_crypto_config:
+                                    if self.mode == 'safelive':
+                                        self.buy_times[crypto_name][dt.datetime.now()] = 'simulated_buy'
+                                    else:
+                                        self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_buy'
                         else:
                             print('Not enough cash')
     
                             trade = "UNABLE TO BUY (NOT ENOUGH CASH)"
-    
-                            if self.mode != 'backtest':
-                                self.buy_times[crypto_name][dt.datetime.now()] = 'unable_to_buy'
-                            else:
-                                self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_buy'
+                            
+                            if self.plot_crypto_config:
+                                if self.mode != 'backtest':
+                                    self.buy_times[crypto_name][dt.datetime.now()] = 'unable_to_buy'
+                                else:
+                                    self.buy_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_buy'
                     elif trade == 'SELL':
                         if self.holdings[crypto_name] > 0:
                             
@@ -324,8 +330,9 @@ class Trader():
                                 self.orders[crypto_name] += [Order(order_info)]
     
                                 print("Order info:", order_info)
-    
-                                self.sell_times[crypto_name][dt.datetime.now()] = 'live_sell'
+                                
+                                if self.plot_crypto_config:
+                                    self.sell_times[crypto_name][dt.datetime.now()] = 'live_sell'
                             else:
                                 # Simulate selling the crypto by adding to cash and substracting from holdings
                                 self.cash += round(holdings_to_sell * price, 2)
@@ -337,20 +344,21 @@ class Trader():
                                     self.bought_price[crypto_name] = 0
                                 
                                 trade = 'SIMULATION SELL'
-                                
-                                if self.mode == 'safelive':
-                                    self.sell_times[crypto_name][dt.datetime.now()] = 'simulated_sell'
-                                else:
-                                    self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
+                                if self.plot_crypto_config:
+                                    if self.mode == 'safelive':
+                                        self.sell_times[crypto_name][dt.datetime.now()] = 'simulated_sell'
+                                    else:
+                                        self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'simulated_sell'
                         else:
                             print("Not enough holdings")
     
                             trade = 'UNABLE TO SELL (NOT ENOUGH HOLDINGS)'
-    
-                            if self.mode != 'backtest':
-                                self.sell_times[crypto_name][dt.datetime.now()] = 'unable_to_sell'
-                            else:
-                                self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
+                            
+                            if self.plot_crypto_config:
+                                if self.mode != 'backtest':
+                                    self.sell_times[crypto_name][dt.datetime.now()] = 'unable_to_sell'
+                                else:
+                                    self.sell_times[crypto_name][self.convert_timestamp_to_datetime(crypto_historicals[i][self.backtest_index]['begins_at'])] = 'unable_to_sell'
                     
                     self.price_dict[crypto_name] = price
                     
@@ -396,6 +404,7 @@ class Trader():
             print("User ended execution of program.")
             
             if self.export_csv_config:
+                print("Exporting csv...")
                 self.export_csv()
             
             self.logout()
@@ -421,6 +430,7 @@ class Trader():
             print("An unexpected error occured: stopping trading")
 
             if self.export_csv_config:
+                print("Exporting csv...")
                 self.export_csv()
             
             self.logout()
@@ -428,6 +438,9 @@ class Trader():
             print("Error message:", sys.exc_info())
     
     def generate_id(self):
+        """
+        Generates a random id string consisting of letters and numbers that is 12 digits long
+        """
         letters_and_numbers = 'abcdefghijklmnopqrstuvwxyz0123456789'
         id = ''
         
@@ -475,6 +488,9 @@ class Trader():
             return math.floor(value * 100)/100.0
     
     def login(self):
+        """
+        Logs the user in with username and password with verification by sms text. This method does not store the session.
+        """
         time_logged_in = 60 * 60 * 24 * self.days_to_run
         
         rh.authentication.login(username=self.username,
@@ -487,6 +503,9 @@ class Trader():
         print("login successful")
     
     def logout(self):
+        """
+        Attempts to log out the user unless already logged out.
+        """
         try:
             rh.authentication.logout()
             
@@ -495,6 +514,9 @@ class Trader():
             print('already logged out: logout() can only be called when currently logged in')
     
     def retrieve_cash_and_equity(self):
+        """
+        Returns cash, equity as floats from robin_stocks.robinhood.account.build_user_profile() rounded to two decimal places
+        """
         rh_cash = rh.account.build_user_profile()
         
         cash = round(float(rh_cash['cash']), 2)
@@ -545,7 +567,7 @@ class Trader():
     
     def get_crypto_holdings_capital(self):
         """
-        Returns the dollar value of crypto assets
+        Returns the current dollar value of crypto assets rounded to two decimal places
         """
         capital = 0.00
             
@@ -662,6 +684,12 @@ class Trader():
         return build_holdings_data
     
     def get_holdings_and_bought_price(self):
+        """
+        Returns two dictionaries, holdings and bought_price, in the following format
+        E.g.
+            holdings = {'BTC': 1.25, 'ETH': 0.50}
+            bought_price = {'BTC': 19784.21, 'ETH': 1923.61}
+        """
         holdings = {self.crypto[i]: 0 for i in range(0, len(self.crypto))}
         bought_price = {self.crypto[i]: 0 for i in range(0, len(self.crypto))}
         
@@ -679,6 +707,9 @@ class Trader():
         return holdings, bought_price
     
     def display_holdings(self):
+        """
+        Returns a string listing the amount of crypto held and the latest price to be printed out
+        """
         text = ''
 
         for crypto, amount in self.holdings.items():
@@ -691,6 +722,8 @@ class Trader():
         
     def download_backtest_data(self):
         """
+        Returns historical crypto data for every crypto in self.crypto
+        
         Assumes that self.mode is 'backtest'
         """
         crypto_historical_data = {}
@@ -704,9 +737,15 @@ class Trader():
         return crypto_historical_data
     
     def export_csv(self):
+        """
+        Exports a csv of completed crypto orders
+        """
         rh.export.export_completed_crypto_orders('./', 'completed_crypto_orders')
     
     def check_config(self, config):
+        """
+        Assures that the configuration is as expected. Raises an exception if an error is found.
+        """
         assert type(config['days_to_run']) == int and config['days_to_run'] >= 1
 
         assert type(config['username']) == str and type(config['password']) == str
@@ -836,6 +875,10 @@ class Trader():
             print('Loss percentage (%) must be set to a POSITIVE value: loss percentage not reset')
     
     def continue_trading(self, override=None):
+        """
+        Returns true if loss has not exceeded loss threshold or loss percentage threshold. If either loss threshold or loss percentage threshold have been passed then False is returned.
+        If the bool parameter override is passed into the function, then override is returned by the function.
+        """
         if override != None:
             assert type(override) == bool
             
@@ -891,6 +934,9 @@ class Trader():
             print("Loss threshold (in dollars) must be set to a POSITIVE value: loss threshold not reset")
     
     def get_runtime(self):
+        """
+        Returns the runtime in seconds
+        """
         return t.time() - self.start_time
 
     def set_profit(self, profit):
@@ -948,7 +994,8 @@ class Trader():
     
     def get_historical_data(self, crypto_symbol):
         """
-        Assumes self.mode is either 'live' or 'safelive'
+        Returns historical crypto data for crypto_symbol.
+        Assumes self.mode is either 'live' or 'safelive'.
         """
         historical_data = rh.crypto.get_crypto_historicals(crypto_symbol, interval=self.interval, span=self.span, bounds=self.bounds)
         
