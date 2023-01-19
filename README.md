@@ -62,7 +62,9 @@ config = {
     'holdings_factor': 0.20,
     'cash_factor': 0.20,
     'buy_order_type': 'market',
-    'sell_order_type': 'market'
+    'sell_order_type': 'market',
+    'only_sell_above_average_bought_price': False, # version 1.0.8 onwards
+    'only_buy_below_average_bought_price': False # version 1.0.8 onwards
 }
 
 tr = rct.Trader(config)
