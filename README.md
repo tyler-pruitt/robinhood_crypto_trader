@@ -53,7 +53,7 @@ config = {
     
     'backtest': {
         # the time between data points for backtesting, options are ’15second’, ‘5minute’, ‘10minute’, ‘hour’, ‘day’, or ‘week’
-        'interval': '15second',
+        'interval': '5minute',
         
         # the entire time frame to collect data points, options are ‘hour’, ‘day’, ‘week’, ‘month’, ‘3month’, ‘year’, or ‘5year’
         'span': 'hour',
@@ -66,7 +66,7 @@ config = {
     },
     'trader': {
         # the time between data points for live trading or simulated live trading, options are ’15second’, ‘5minute’, ‘10minute’, ‘hour’, ‘day’, or ‘week’
-        'interval': '15second',
+        'interval': '5minute',
         
         # the entire time frame to collect data points, options are ‘hour’, ‘day’, ‘week’, ‘month’, ‘3month’, ‘year’, or ‘5year’
         'span': 'hour',
