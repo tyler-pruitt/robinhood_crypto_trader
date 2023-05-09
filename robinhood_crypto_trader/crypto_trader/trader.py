@@ -208,7 +208,7 @@ class Trader():
                 
                 if self.mode != 'backtest':
                     for crypto_symbol in self.crypto:
-                        prices += [round(float(self.get_latest_price(crypto_symbol)), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))]
+                        prices += [round(float(self.get_latest_quote(crypto_symbol)['ask_price']), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))]
                 else:
                     for i in range(len(self.crypto)):
                         prices += [round(float(crypto_historicals[self.crypto[i]][self.backtest_index]['close_price']), self.get_precision(self.crypto_meta_data[self.crypto[i]]['min_order_price_increment']))]
@@ -254,7 +254,7 @@ class Trader():
     
                     if trade == 'BUY':
                         if self.mode != 'backtest':
-                            price = round(float(self.get_latest_price(crypto_name)), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
+                            price = round(float(self.get_latest_quote(crypto_name)['ask_price']), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
                         
                         if self.cash > 0:
                             
@@ -330,7 +330,7 @@ class Trader():
                             # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#placing-and-cancelling-orders
     
                             if self.mode != 'backtest':
-                                price = round(float(self.get_latest_price(crypto_name)), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
+                                price = round(float(self.get_latest_quote(crypto_name)['ask_price']), self.get_precision(self.crypto_meta_data[crypto_symbol]['min_order_price_increment']))
                             
                             
                             
@@ -597,11 +597,11 @@ class Trader():
             # Send the amount in crypto to receive_address
             return
     
-    def get_latest_price(self, crypto_symbol):
+    def get_latest_quote(self, crypto_symbol):
         """
-        Returns a string of the latest market price of the cryptocurrency
+        Returns a string of the latest quote of the cryptocurrency.
         """
-        return rh.crypto.get_crypto_quote(crypto_symbol)['mark_price']
+        return rh.crypto.get_crypto_quote(crypto_symbol)
     
     def get_crypto_holdings_capital(self):
         """
@@ -610,7 +610,7 @@ class Trader():
         capital = 0.00
             
         for crypto_name, crypto_amount in self.holdings.items():
-            capital += crypto_amount * float(self.get_latest_price(crypto_name))
+            capital += crypto_amount * float(self.get_latest_price(crypto_name)['mark_price'])
         
         return round(capital, 2)
     
@@ -709,7 +709,7 @@ class Trader():
         for i in range(len(holdings_data)):
             nested_data = dict()
             
-            nested_data['price'] = self.get_latest_price(holdings_data[i]["currency"]["code"])
+            nested_data['price'] = self.get_latest_quote(holdings_data[i]["currency"]["code"])['mark_price']
             nested_data['quantity'] = holdings_data[i]["quantity"]
             
             try:
@@ -752,7 +752,7 @@ class Trader():
 
         for crypto, amount in self.holdings.items():
             
-            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(round(float(self.get_latest_price(crypto)), self.get_precision(self.crypto_meta_data[crypto]['min_order_price_increment']))) + '\n'
+            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(round(float(self.get_latest_quote(crypto)['mark_price']), self.get_precision(self.crypto_meta_data[crypto]['min_order_price_increment']))) + '\n'
         
         text = text[:-2]
         
