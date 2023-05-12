@@ -83,6 +83,9 @@ class Trader():
         self.determine_trade_func = config['determine_trade_function']
         self.only_sell_above_bought = config['only_sell_above_average_bought_price']
         self.only_buy_below_bought = config['only_buy_below_average_bought_price']
+
+        self.overbought_threshold = 70
+        self.oversold_threshold = 30
         
         if config.get('builtin_trade_function_arguments', []) != []:
             self.builtin_trade_function_arguments = config['builtin_trade_function_arguments']
@@ -224,8 +227,10 @@ class Trader():
                     _, self.equity = self.retrieve_cash_and_equity()
                 
                 # Set the profit and percent change for the trader
-                self.set_profit(self.cash + self.get_crypto_holdings_capital() - self.initial_capital)
-                self.set_percent_change(((self.cash + self.get_crypto_holdings_capital() - self.initial_capital) * 100) / self.initial_capital)
+                # self.set_profit(self.cash + self.get_crypto_holdings_capital() - self.initial_capital)
+                self.profit = self.cash + self.get_crypto_holdings_capital() - self.initial_capital
+                # self.set_percent_change(((self.cash + self.get_crypto_holdings_capital() - self.initial_capital) * 100) / self.initial_capital)
+                self.percent_change = ((self.cash + self.get_crypto_holdings_capital() - self.initial_capital) * 100) / self.initial_capital
     
                 # Update console
                 self.update_output()
@@ -421,7 +426,8 @@ class Trader():
     
                         self.average_iteration_runtime /= (self.iteration_number + 1)
                     
-                    wait_time = self.convert_time_to_sec(self.get_interval()) - self.average_iteration_runtime
+                    # wait_time = self.convert_time_to_sec(self.get_interval()) - self.average_iteration_runtime
+                    wait_time = self.convert_time_to_sec(self.interval) - self.average_iteration_runtime
     
                     if wait_time < 0:
                         wait_time = 0
@@ -561,18 +567,6 @@ class Trader():
         equity = round(float(rh_cash['equity']), 2)
         
         return cash, equity
-    
-    def get_cash(self):
-        return self.cash
-    
-    def set_cash(self, cash):
-        self.cash = cash
-    
-    def get_equity(self):
-        return self.equity
-    
-    def set_equity(self, equity):
-        self.equity = equity
     
     def payment(self, crypto_symbol, amount):
         """
@@ -901,15 +895,6 @@ class Trader():
         
         print("configuration test: PASSED")
     
-    def get_percent_change(self):
-        return self.percent_change
-    
-    def set_percent_change(self, percent_change):
-        self.percent_change = percent_change
-    
-    def get_loss_percentage(self):
-        return self.loss_percentage
-    
     def set_loss_percentage(self, loss_percentage):
         if loss_percentage >= 0:
             self.loss_percentage = loss_percentage
@@ -926,15 +911,15 @@ class Trader():
             
             return override
         else:
-            if self.get_profit() >= -1 * self.get_loss_threshold():
-                if self.get_percent_change() >= -1 * self.get_loss_percentage():
+            if self.profit >= -1 * self.loss_threshold:
+                if self.percent_change >= -1 * self.loss_percentage:
                     return True
                 else:
-                    print("Loss percentage exceeded " + str(self.get_loss_percentage()) + "%: terminating automated trading")
+                    print("Loss percentage exceeded " + str(self.loss_percentage) + "%: terminating automated trading")
                     
                     return False
             else:
-                print("Loss exceeded $" + str(self.get_loss_threshold()) + ": terminating automated trading")
+                print("Loss exceeded $" + str(self.loss_threshold) + ": terminating automated trading")
                 
                 return False
     
@@ -960,15 +945,6 @@ class Trader():
         
         return ', '.join(result[:granularity])
     
-    def set_trade(self, trade):
-        self.trade = trade
-    
-    def get_trade(self):
-        return self.trade
-    
-    def get_loss_threshold(self):
-        return self.loss_threshold
-    
     def set_loss_threshold(self, loss):
         if loss >= 0:
             self.loss_threshold = loss
@@ -980,12 +956,6 @@ class Trader():
         Returns the runtime in seconds
         """
         return t.time() - self.start_time
-
-    def set_profit(self, profit):
-        self.profit = profit
-    
-    def get_profit(self):
-        return self.profit
     
     def display_profit(self):
 
@@ -1009,30 +979,6 @@ class Trader():
         text += '%'
 
         return text
-    
-    def set_interval(self, interval):
-        self.interval = interval
-    
-    def set_span(self, span):
-        self.span = span
-    
-    def get_interval(self):
-        return self.interval
-    
-    def get_span(self):
-        return self.span
-    
-    def get_crypto(self):
-        return self.crypto
-    
-    def set_crypto(self, crypto):
-        self.crypto = crypto
-    
-    def get_start_time(self):
-        return self.start_time
-    
-    def set_start_time(self, start_time):
-        self.start_time = start_time
     
     def get_historical_data(self, crypto_symbol):
         """
@@ -1106,7 +1052,7 @@ class Trader():
             print("Setting trade to default value of 'HOLD'")
             assert trade in ['BUY', 'SELL', 'HOLD']
 
-            self.set_trade(trade)
+            self.trade = trade
         
         if self.plot_crypto_config:
             self.plot_crypto(crypto_symbol, prices, times)
@@ -1261,16 +1207,16 @@ class Trader():
             self.plot_macd_rsi_analytics(crypto_name, macd, signal, macd_signal_difference, rsi_data)
         
         if rsi_indicator == "BUY" and macd_signal_indicator == "BUY":
-            
-            self.set_trade("BUY")
-        elif rsi_indicator == "SELL" and macd_signal_indicator == "SELL":
-            
-            self.set_trade("SELL")
-        else:
-            
-            self.set_trade("HOLD")
 
-        return self.get_trade()
+            self.trade = "BUY"
+        elif rsi_indicator == "SELL" and macd_signal_indicator == "SELL":
+
+            self.trade = "SELL"
+        else:
+
+            self.trade = "HOLD"
+
+        return self.trade
     
     def boll(self, crypto_name, times, prices):
         """
@@ -1280,15 +1226,15 @@ class Trader():
         
         Runtime is much faster when config['plot_analytics'] = False
         """
+        if self.builtin_trade_function_arguments == []:
+            period = 20
+            std_width = 2
+        else:
+            period = self.builtin_trade_function_arguments[0]
+            std_width = self.builtin_trade_function_arguments[1]
 
         # Helper function
-        def BOLL(times, prices):
-            if self.builtin_trade_function_arguments == []:
-                period = 20
-                std_width = 2
-            else:
-                period = self.builtin_trade_function_arguments[0]
-                std_width = self.builtin_trade_function_arguments[1]
+        def BOLL(times, prices, period, std_width):
             """
             Bollinger bands (BOLL)
             
@@ -1343,26 +1289,26 @@ class Trader():
             return boll
         
         if self.plot_analytics_config:
-            boll_data = BOLL(times, prices)
+            boll_data = BOLL(times, prices, period, std_width)
         else:
-            boll_data = BOLL(times[-1 * period:], prices[-1 * period:])
+            boll_data = BOLL(times[-1 * period:], prices[-1 * period:], period, std_width)
             
             assert len(boll_data) == 1
         
         if boll_data[-1]['upper_band'] < prices[-1]:
-            
-            self.set_trade("SELL")
+
+            self.trade = "SELL"
         elif boll_data[-1]['lower_band'] > prices[-1]:
-            
-            self.set_trade("BUY")
+
+            self.trade = "BUY"
         else:
-            
-            self.set_trade("HOLD")
+
+            self.trade = "HOLD"
         
         if self.plot_analytics_config:
             self.plot_boll_analytics(crypto_name, prices, times, boll_data)
 
-        return self.get_trade()
+        return self.trade
     
     def plot_crypto(self, stock, prices, price_times):
         # RGBA: [red, green, blue, alpha]
@@ -1474,8 +1420,8 @@ class Trader():
         overbought_line, oversold_line = [], []
         
         for i in range(len(rsi_times)):
-            overbought_line.append(self.get_overbought_threshold())
-            oversold_line.append(self.get_oversold_threshold())
+            overbought_line.append(self.overbought_threshold)
+            oversold_line.append(self.oversold_threshold)
         
         plt.figure(clear=True)
         plt.plot_date(rsi_times, rsi_data, 'r-')
