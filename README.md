@@ -39,9 +39,6 @@ config = {
     # option to export a csv of completed crypto orders when you finish trading
     'export_csv': False,
     
-    # option to plot graphs showing your trading strategy working
-    'plot_analytics': False,
-    
     # option to plot the price of the cryptocurrency
     'plot_crypto': False,
     
