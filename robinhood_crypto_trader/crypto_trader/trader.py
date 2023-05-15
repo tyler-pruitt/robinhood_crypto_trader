@@ -1,7 +1,7 @@
 """
-Version 1.0.8 Preproduction
+Version 1.1.0 Preproduction
 
-Last updated: Tyler Pruitt at 01:44 PM (PST) on January 20, 2023
+Last updated: 01:44 PM (PST) on January 20, 2023
 
 Issues:
 - Implement buy by quantity orders with thresholds in place to prevent orders from failing [thresholds found at rh.crypto.get_crypto_info(crypto_symbol)]
@@ -39,7 +39,6 @@ class Trader():
             'password': '',
             'days_to_run': 1,
             'export_csv': False,
-            'plot_analytics': False,
             'plot_crypto': False,
             'plot_portfolio': False,
             'mode': '',
@@ -76,7 +75,6 @@ class Trader():
         self.password = config['password']
         self.days_to_run = config['days_to_run']
         self.export_csv_config = config['export_csv']
-        self.plot_analytics_config = config['plot_analytics']
         self.plot_crypto_config = config['plot_crypto']
         self.plot_portfolio_config = config['plot_portfolio']
         self.mode = config['mode']
@@ -479,7 +477,7 @@ class Trader():
             
             self.logout()
             
-            print("Error message:", sys.exc_info())
+            raise Exception
     
     def generate_id(self):
         """
@@ -787,8 +785,6 @@ class Trader():
         assert config['mode'] in ['live', 'backtest', 'safelive']
         
         assert type(config['export_csv']) == bool
-
-        assert type(config['plot_analytics']) == bool
         
         assert type(config['plot_crypto']) == bool
         
@@ -1065,8 +1061,6 @@ class Trader():
         
         If both RSI and MACD are cross their respective thresholds, then either buy or sell
         Else hold
-        
-        Runtime is much faster when config['plot_analytics'] = False
         """
 
         """
@@ -1168,12 +1162,9 @@ class Trader():
         else:
             rsi_period, rsi_index, rsi_sell_level, rsi_buy_level, macd_fast_period, macd_slow_period, macd_signal_period, macd_index = self.builtin_trade_function_arguments[0], self.builtin_trade_function_arguments[1], self.builtin_trade_function_arguments[2], self.builtin_trade_function_arguments[3], self.builtin_trade_function_arguments[4], self.builtin_trade_function_arguments[5], self.builtin_trade_function_arguments[6], self.builtin_trade_function_arguments[7]
         
-        if self.plot_analytics_config:
-            rsi_data = RSI(times, prices, rsi_period)
-        else:
-            rsi_data = RSI(times[rsi_index:], prices[rsi_index:], rsi_period)
-            
-            assert len(rsi_data) == 1
+        rsi_data = RSI(times[rsi_index:], prices[rsi_index:], rsi_period)
+        
+        assert len(rsi_data) == 1
         
         if rsi_data[-1][1] > rsi_sell_level:
             rsi_indicator = "SELL"
@@ -1182,14 +1173,10 @@ class Trader():
         else:
             rsi_indicator = "HOLD"
         
-        if self.plot_analytics_config:
-            macd, signal = MACD(times, prices, macd_fast_period, macd_slow_period, macd_signal_period)
-            macd_signal_difference = []
-        else:
-            macd, signal = MACD(times[macd_index:], prices[macd_index:], macd_fast_period, macd_slow_period, macd_signal_period)
-            macd_signal_difference = []
-            
-            assert len(signal) == 1
+        macd, signal = MACD(times[macd_index:], prices[macd_index:], macd_fast_period, macd_slow_period, macd_signal_period)
+        macd_signal_difference = []
+        
+        assert len(signal) == 1
         
         for i in range(len(macd)):
             for j in range(len(signal)):
@@ -1202,9 +1189,6 @@ class Trader():
             macd_signal_indicator = "BUY"
         else:
             macd_signal_indicator = "HOLD"
-        
-        if self.plot_analytics_config:
-            self.plot_macd_rsi_analytics(crypto_name, macd, signal, macd_signal_difference, rsi_data)
         
         if rsi_indicator == "BUY" and macd_signal_indicator == "BUY":
 
@@ -1223,8 +1207,6 @@ class Trader():
         Determines whether the trade is a 'BUY', 'SELL', or 'HOLD'
         
         Algorithm uses bollinger bands
-        
-        Runtime is much faster when config['plot_analytics'] = False
         """
         if self.builtin_trade_function_arguments == []:
             period = 20
@@ -1287,13 +1269,10 @@ class Trader():
                 boll += [{'time': moving_average[i][0], 'moving_average': moving_average[i][1], 'upper_band': moving_average[i][1] + (std * std_width), 'lower_band': moving_average[i][1] - (std * std_width)}]
             
             return boll
+
+        boll_data = BOLL(times[-1 * period:], prices[-1 * period:], period, std_width)
         
-        if self.plot_analytics_config:
-            boll_data = BOLL(times, prices, period, std_width)
-        else:
-            boll_data = BOLL(times[-1 * period:], prices[-1 * period:], period, std_width)
-            
-            assert len(boll_data) == 1
+        assert len(boll_data) == 1
         
         if boll_data[-1]['upper_band'] < prices[-1]:
 
@@ -1304,9 +1283,6 @@ class Trader():
         else:
 
             self.trade = "HOLD"
-        
-        if self.plot_analytics_config:
-            self.plot_boll_analytics(crypto_name, prices, times, boll_data)
 
         return self.trade
     
@@ -1365,96 +1341,6 @@ class Trader():
         plt.title(stock)
         plt.ylabel("Price ($)")
         plt.xlabel("Time")
-        plt.show()
-    
-    def plot_macd_signal(self, stock, macd, signal):
-        
-        macd_data, macd_times = [], []
-    
-        for i in range(len(macd)):
-            macd_data.append(macd[i][1])
-            macd_times.append(self.convert_timestamp_to_datetime(macd[i][0]))
-        
-        signal_data, signal_times = [], []
-        
-        for i in range(len(signal)):
-            signal_data.append(signal[i][1])
-            signal_times.append(self.convert_timestamp_to_datetime(signal[i][0]))
-        
-        plt.figure(clear=True)
-        plt.plot_date(macd_times, macd_data, 'b-')
-        plt.plot_date(signal_times, signal_data, 'r-')
-        plt.title(stock)
-        plt.ylabel("MACD vs. Signal")
-        plt.legend(["MACD", "Signal"], loc='lower left')
-        plt.xlabel("Time")
-        plt.show()
-    
-    def plot_macd_signal_difference(self, stock, macd_signal_difference):
-        
-        macd_signal_data, macd_signal_times = [], []
-        
-        for i in range(len(macd_signal_difference)):
-            macd_signal_times.append(self.convert_timestamp_to_datetime(macd_signal_difference[i][0]))
-            macd_signal_data.append(macd_signal_difference[i][1])
-        
-        zeroLine = []
-        for i in range(len(macd_signal_times)):
-            zeroLine.append(0)
-        
-        plt.figure(clear=True)
-        plt.plot_date(macd_signal_times, macd_signal_data, 'r-')
-        plt.plot_date(macd_signal_times, zeroLine, 'k--')
-        plt.title(stock)
-        plt.ylabel("MACD - Signal")
-        plt.xlabel("Time")
-        plt.show()
-    
-    def plot_rsi(self, stock, rsi):
-        rsi_data, rsi_times = [], []
-        
-        for i in range(len(rsi)):
-            rsi_times.append(self.convert_timestamp_to_datetime(rsi[i][0]))
-            rsi_data.append(rsi[i][1])
-        
-        overbought_line, oversold_line = [], []
-        
-        for i in range(len(rsi_times)):
-            overbought_line.append(self.overbought_threshold)
-            oversold_line.append(self.oversold_threshold)
-        
-        plt.figure(clear=True)
-        plt.plot_date(rsi_times, rsi_data, 'r-')
-        plt.plot_date(rsi_times, overbought_line, 'k--')
-        plt.plot_date(rsi_times, oversold_line, 'k--')
-        plt.title(stock)
-        plt.ylabel("RSI")
-        plt.xlabel("Time")
-        plt.show()
-    
-    def plot_macd_rsi_analytics(self, stock, macd, signal, macd_signal_difference, rsi):
-        self.plot_macd_signal(stock, macd, signal)
-        self.plot_macd_signal_difference(stock, macd_signal_difference)
-        self.plot_rsi(stock, rsi)
-    
-    def plot_boll_analytics(self, stock, prices, times, boll_data):
-        upper_band, moving_average, lower_band, boll_times = [], [], [], []
-        
-        for i in range(len(boll_data)):
-            upper_band += [boll_data[i]['upper_band']]
-            moving_average += [boll_data[i]['moving_average']]
-            lower_band += [boll_data[i]['lower_band']]
-            boll_times += [boll_data[i]['time']]
-        
-        plt.figure(clear=True)
-        plt.plot_date(times, prices, 'g-')
-        plt.plot_date(boll_times, upper_band, 'b-')
-        plt.plot_date(boll_times, moving_average, 'r-')
-        plt.plot_date(boll_times, lower_band, 'b-')
-        plt.title(stock)
-        plt.xlabel('Time')
-        plt.ylabel('Price ($)')
-        plt.legend(('stock', 'upper_band', 'moving_average', 'lower_band'), loc='lower left')
         plt.show()
     
     def plot_portfolio(self):
