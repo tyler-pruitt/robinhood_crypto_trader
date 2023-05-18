@@ -602,7 +602,7 @@ class Trader():
         capital = 0.00
             
         for crypto_name, crypto_amount in self.holdings.items():
-            capital += crypto_amount * float(self.get_latest_price(crypto_name)['mark_price'])
+            capital += crypto_amount * float(self.get_latest_quote(crypto_name)['mark_price'])
         
         return round(capital, 2)
     
